@@ -48,7 +48,7 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
     workflows: ({skip = 0, name = ''} = {}) => {
       if (!Number.isSafeInteger(skip) || skip < 0 || typeof name !== 'string' || name.length > 200) throw new ReplayError('invalid_filter');
       const query = new URLSearchParams({take: '100', skip: String(skip), includeScopes: 'true'});
-      if (name.trim()) query.set('filter', JSON.stringify({name: name.trim()}));
+      if (name.trim()) query.set('filter', JSON.stringify({query: name.trim()}));
       return request('/rest/workflows', undefined, query, true);
     },
     run: (id, payload) => request(`/rest/workflows/${id}/run`, payload),

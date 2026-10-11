@@ -89,7 +89,7 @@ Les POST sont séquentiels, avec Web Lock et marqueur individuel avant chaque en
 
 ### Rejeu individuel
 
-Le champ **Rechercher un workflow par nom** accepte une partie du nom. Valider avec Entrée ou **Rechercher** ; la recherche interroge le catalogue n8n accessible, pas seulement les options déjà chargées. **Plus de workflows** conserve la recherche. Effacer le champ puis rechercher rétablit la liste complète. Une nouvelle recherche efface la sélection bulk et les confirmations précédentes.
+Le champ **Rechercher un workflow par nom** accepte une partie du nom. Valider avec Entrée ou **Rechercher** ; la recherche porte sur les noms et descriptions du catalogue n8n accessible, pas seulement les options déjà chargées. **Plus de workflows** conserve la recherche. Effacer le champ puis rechercher rétablit la liste complète. Une nouvelle recherche efface la sélection bulk et les confirmations précédentes.
 
 1. Se connecter à l'éditeur n8n sur la même origine.
 2. Ouvrir `/replay-manager/`, choisir le workflow par son nom dans la liste accessible, saisir l'ID source puis cliquer **Vérifier la source**. Le bouton **Plus de workflows** charge la page suivante. Les workflows archivés ou sans droits de lecture/exécution sont non sélectionnables ; les autres restent soumis à la compatibilité du déclencheur. Cette étape est uniquement en lecture.

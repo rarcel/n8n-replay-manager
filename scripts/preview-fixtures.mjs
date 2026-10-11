@@ -32,7 +32,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/rest/workflows') {
     let filter;
     try { filter = JSON.parse(url.searchParams.get('filter') ?? '{}'); } catch { return json({error: 'Invalid filter'}, 400); }
-    const rows = [workflow, {...workflow, id: 'not-configured', name: 'Autre workflow factice'}].filter(row => row.name.toLowerCase().includes((filter.name ?? '').toLowerCase()));
+    const rows = [workflow, {...workflow, id: 'not-configured', name: 'Autre workflow factice'}].filter(row => row.name.toLowerCase().includes((filter.query ?? '').toLowerCase()));
     const skip = Number(url.searchParams.get('skip') ?? 0);
     return json({count: rows.length, data: rows.slice(skip, skip + 100)});
   }

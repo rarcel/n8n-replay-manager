@@ -2,7 +2,7 @@
 
 ## Réalisé
 
-Recherche serveur par fragment de nom ajoutée au catalogue (filter.name, pagination take/skip conservée). Contrat DTO/repository n8n 2.42.4 examiné. 47 tests factices passent, notamment encodage du filtre, champ vide et pagination filtrée. Parcours navigateur non validé : les navigateurs de contrôle ont expiré à l’ouverture de l’aperçu localhost ; aucun appel à l’instance réelle.
+Recherche serveur par fragment de nom ajoutée au catalogue (filter.query, noms et descriptions, pagination take/skip conservée). Contrat DTO/repository n8n 2.42.4 examiné. 47 tests factices passent, notamment encodage du filtre, champ vide et pagination filtrée. Parcours navigateur non validé : les navigateurs de contrôle ont expiré à l’ouverture de l’aperçu localhost ; aucun appel à l’instance réelle.
 
 Refus des pins conservé après vérification des sources officielles 2.42.4 (contrôleur, DTO, service manuel et moteur) : les pins stockés s’appliquent au rejeu manuel et aucun override n’est accepté par le DTO. Message utilisateur explicite ajouté. 46 tests factices passent, dont pins sur trigger/node aval et ajout après aperçu : refus sans POST ni mutation. Aucun rejeu réel.
 

@@ -44,7 +44,7 @@ test('workflow name search encodes text safely and preserves server pagination',
     return new Response(JSON.stringify({count: 101, data: [workflow]}), {headers: {'Content-Type': 'application/json'}});
   }});
   await api.workflows({name: '  Factures <test> & clients  ', skip: 100});
-  assert.deepEqual(JSON.parse(calls[0].url.searchParams.get('filter')), {name: 'Factures <test> & clients'});
+  assert.deepEqual(JSON.parse(calls[0].url.searchParams.get('filter')), {query: 'Factures <test> & clients'});
   assert.equal(calls[0].url.searchParams.get('skip'), '100');
   assert.equal(calls[0].options.method, 'GET');
   await api.workflows({name: '   '});
