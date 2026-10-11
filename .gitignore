@@ -8,3 +8,5 @@ coverage/
 .DS_Store
 Thumbs.db
 /deploy/traefik.env.local
+
+/dist/

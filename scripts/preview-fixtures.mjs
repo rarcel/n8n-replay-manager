@@ -6,7 +6,7 @@ import { config } from '../web/config.mjs';
 import { stringify } from '../web/vendor/flatted.mjs';
 const root = resolve('web');
 const types = {'.html': 'text/html; charset=utf-8', '.css': 'text/css', '.mjs': 'application/javascript', '.woff2': 'font/woff2'};
-const workflow = {id: config.defaultWorkflowId, name: 'Workflow factice <test>', versionId: 'fixture-v1', scopes: ['workflow:read', 'workflow:execute'], nodes: [{name: 'Webhook', type: 'n8n-nodes-base.webhook'}, {name: 'Work', type: 'n8n-nodes-base.noOp'}], connections: {}, settings: {}};
+const workflow = {id: 'fixture-workflow', name: 'Workflow factice <test>', versionId: 'fixture-v1', scopes: ['workflow:read', 'workflow:execute'], nodes: [{name: 'Webhook', type: 'n8n-nodes-base.webhook'}, {name: 'Work', type: 'n8n-nodes-base.noOp'}], connections: {}, settings: {}};
 const summaries = ['101', '102', '103'].map((id, index) => ({id, workflowId: workflow.id, status: index === 1 ? 'success' : 'error', startedAt: `2026-10-${String(10 - index).padStart(2, '0')}T12:00:00.000Z`, stoppedAt: `2026-10-${String(10 - index).padStart(2, '0')}T12:01:00.000Z`, scopes: workflow.scopes}));
 let rejectedWrites = 0;
 const simulateRuns = process.env.FIXTURE_RUNS === '1';

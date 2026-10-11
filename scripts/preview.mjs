@@ -5,7 +5,8 @@ const root = resolve('web');
 const types = {'.html': 'text/html; charset=utf-8', '.css': 'text/css', '.mjs': 'application/javascript'};
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname;
-  if (path === '/' || path === '/replay-manager') { res.writeHead(302, {Location: '/replay-manager/'}); return res.end(); }
+  if (path === '/') { res.writeHead(503, {'Content-Type': 'text/plain; charset=utf-8'}); return res.end('Static preview only. No n8n login here. Use scripts/preview-fixtures.mjs for the synthetic journey.'); }
+  if (path === '/replay-manager') { res.writeHead(302, {Location: '/replay-manager/'}); return res.end(); }
   if (!['GET', 'HEAD'].includes(req.method) || !path.startsWith('/replay-manager/')) { res.writeHead(503, {'Content-Type': 'application/json'}); return res.end(JSON.stringify({error: 'Preview only. No n8n backend or replay available.'})); }
   const target = resolve(root, '.' + path.slice('/replay-manager'.length) + (path.endsWith('/') ? 'index.html' : ''));
   if (!target.startsWith(root + sep)) { res.writeHead(404); return res.end(); }

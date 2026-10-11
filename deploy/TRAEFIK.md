@@ -1,27 +1,38 @@
-# Intégration au Traefik existant — préparée, non déployée
+# Deploy with an existing Traefik installation
 
-Le service dédié sert uniquement les fichiers sous `/replay-manager/`. Traefik continue d'envoyer `/`, `/rest/`, les webhooks et WebSockets directement vers votre service n8n existant. Aucune chaîne de proxy supplémentaire pour n8n, aucune modification de son image, de ses cookies ou de `N8N_PROXY_HOPS`. Le serveur statique ne possède aucun upstream n8n et refuse les autres chemins.
+The dedicated service serves only /replay-manager/. Traefik continues to route the editor, /rest/, webhooks and WebSockets directly to the existing n8n service. No changes to the n8n image, cookies, session protections or proxy hops are needed. The static server has no n8n upstream and rejects other paths.
 
-Les fichiers `compose.traefik.yaml` et `deploy/Dockerfile.traefik` sont indépendants du Compose sandbox. Ne pas les combiner avec `compose.yaml`. Le réseau externe doit déjà relier Traefik aux services. Aucun port du manager n'est publié sur l'hôte et aucun socket Docker n'est monté dans le manager.
+## Configure
 
-Les valeurs fournies sont renseignées dans `deploy/traefik.env.example` : hôte `n8n.rarcel.net`, réseau externe `rproxy`, entrypoint HTTPS `websecure`. Copier ce fichier vers `deploy/traefik.env.local`. La priorité proposée `1000` reste à comparer au router n8n du POC : elle doit être strictement supérieure. L'entrypoint doit servir le même port public HTTPS que l'éditeur. Les labels supposent le provider Docker ; Swarm nécessite une adaptation. Si une authentification externe ou des middlewares d'accès sont nécessaires pour les assets, reprendre explicitement la politique de l'installation pour ce nouveau router.
+Copy deploy/traefik.env.example to deploy/traefik.env.local and replace every placeholder:
 
-Les certificats sont émis par le Vault interne et la configuration TLS du POC fonctionne déjà : conserver cette configuration dans Traefik et utiliser seulement `compose.traefik.yaml`. Le manager ne contacte pas Vault et ne reçoit aucun certificat privé ou credential Vault. Aucun certResolver ACME n'est renseigné pour cette installation. Comparer les éventuels TLSOptions et middlewares du POC avant intégration.
+| Variable | Value |
+|---|---|
+| N8N_PUBLIC_HOST | Exact existing n8n hostname, without scheme or path |
+| TRAEFIK_NETWORK | Existing external Docker network shared with Traefik |
+| TRAEFIK_HTTPS_ENTRYPOINT | Existing HTTPS entrypoint serving the editor’s public port |
+| REPLAY_ROUTER_PRIORITY | Priority strictly above the existing n8n router for this path |
+| TRAEFIK_CERTRESOLVER | Existing resolver name, only for the optional ACME overlay |
 
-Sans overlay ACME, le router utilise la configuration TLS/certificats déjà disponible dans Traefik. Si l'installation utilise un certResolver, ajouter `compose.traefik-acme.yaml` et renseigner son nom existant. Ne pas créer un resolver, une redirection HTTP ou un service Traefik concurrent dans cette stack. Les noms de router/service `replay-manager` doivent être disponibles ; adapter tous les labels si ces noms existent déjà.
+The example priority is not guaranteed correct for your installation. Preserve any necessary access middlewares and TLSOptions. The Docker-provider labels need adaptation for Swarm. Router/service names replay-manager must be available; adapt all labels together if they collide.
 
-Pour une relecture de configuration seulement, depuis la racine :
+Use existing Traefik certificates with compose.traefik.yaml. If you already use a certificate resolver, also use compose.traefik-acme.yaml. The stack does not create a resolver, certificates, HTTP redirection or another Traefik service. No manager host port or Docker socket is published/mounted.
 
-```powershell
+## Validate and start
+
+Run from the project root; do not combine this independent stack with compose.yaml:
+
+~~~sh
 docker compose --env-file deploy/traefik.env.local -f compose.traefik.yaml config --quiet
-# Variante pour une autre installation utilisant un resolver (variable à renseigner) :
-docker compose --env-file deploy/traefik.env.local -f compose.traefik.yaml -f compose.traefik-acme.yaml config --quiet
 docker build -f deploy/Dockerfile.traefik -t local/replay-manager-static .
 docker run --rm --read-only --tmpfs /tmp --cap-drop ALL local/replay-manager-static -t
-```
+docker compose --env-file deploy/traefik.env.local -f compose.traefik.yaml up -d --build
+~~~
 
-Ces commandes ne démarrent ni n8n ni Traefik et ne rejouent aucune exécution. Elles restent à exécuter sur une machine autorisée avec Docker. Le tag nginx est évolutif : après validation de l'image, pinner son digest. Aucun déploiement n'est effectué par ce dépôt.
+For the resolver variant, add -f compose.traefik-acme.yaml to Compose commands. After validating images, pin their digests for reproducible deployments. These templates are not a claim of tested deployment in your environment.
 
-Lors d'une validation autorisée, contrôler les MIME mjs/CSS/fonts, la CSP du manager, la redirection relative `/replay-manager` vers `/replay-manager/` et l'absence de capture de `/replay-manager-other`. L'éditeur, le manager et `/rest/login` doivent rester sur la même origine exacte. Les routes REST restent sur le router n8n et conservent ses protections. Les assets statiques sont publics et ne contiennent aucune donnée privée ; les données sont contrôlées par n8n sur chaque requête.
+## Verify routing
 
-Sources : [règles et priorités Traefik](https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/rules-and-priority/), [labels Docker et réseau](https://doc.traefik.io/traefik/reference/routing-configuration/other-providers/docker/).
+Check JavaScript/CSS/font MIME types, manager CSP and the /replay-manager to /replay-manager/ redirect. /replay-manager-other must not match this router. Editor, manager and /rest/login must share the exact scheme, hostname and port. n8n routes must retain their existing authentication, headers and WebSocket behavior. Static assets contain no private data; n8n checks each authenticated data request.
+
+[Traefik routing and priority](https://doc.traefik.io/traefik/reference/routing-configuration/http/routing/rules-and-priority/) · [Docker provider](https://doc.traefik.io/traefik/reference/routing-configuration/other-providers/docker/)

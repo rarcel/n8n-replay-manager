@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { config } from '../web/config.mjs';
 import { createApi } from '../web/client.mjs';
 import { createExplorer, executionQuery, localDateToIso } from '../web/explorer.mjs';
-const workflowId = config.defaultWorkflowId;
+const workflowId = 'fixture-workflow';
 const row = id => ({id: String(id), workflowId, status: 'error', startedAt: '2026-10-10T12:00:00.000Z', stoppedAt: '2026-10-10T12:01:00.000Z', scopes: ['workflow:read', 'workflow:execute']});
 const page = (rows, nextCursor = null) => ({results: rows, nextCursor, count: 100, estimated: false});
 function harness() {

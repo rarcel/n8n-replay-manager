@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBulkManager, parseSelection } from '../web/bulk.mjs';
 import { config } from '../web/config.mjs';
-const workflowId = config.defaultWorkflowId;
+const workflowId = 'fixture-workflow';
 function harness() {
   const map = new Map(), posts = []; let time = 0, userId = 'user';
   const storage = {getItem: k => map.get(k) ?? null, setItem: (k,v) => map.set(k,v), removeItem: k => map.delete(k)};

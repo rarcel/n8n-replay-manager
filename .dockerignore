@@ -3,3 +3,7 @@
 secrets
 node_modules
 *.log
+
+dist
+previews
+deploy/traefik.env.local

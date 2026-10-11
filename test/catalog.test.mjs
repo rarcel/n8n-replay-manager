@@ -4,10 +4,10 @@ import { config } from '../web/config.mjs';
 import { createApi } from '../web/client.mjs';
 import { workflowPage } from '../web/catalog.mjs';
 
-const workflow = {id: config.defaultWorkflowId, name: '<b>Nom reçu</b>', scopes: ['workflow:read', 'workflow:execute']};
+const workflow = {id: 'fixture-workflow', name: '<b>Nom reçu</b>', scopes: ['workflow:read', 'workflow:execute']};
 test('workflow catalogue respects configuration, scopes, archive and response pagination', async () => {
   const api = {user: async () => ({id: 'u'}), workflows: async () => ({count: 105, data: [workflow, {...workflow, id: 'other'}, {...workflow, scopes: ['workflow:read']}, {...workflow, isArchived: true}]})};
-  const page = await workflowPage(api, {...config, discoverWorkflows: false}, 100);
+  const page = await workflowPage(api, {...config, discoverWorkflows: false, workflows: {'fixture-workflow': {trigger: 'Webhook'}}}, 100);
   assert.deepEqual(page.workflows.map(w => w.selectable), [true, false, false, false]);
   assert.equal(page.workflows[0].name, '<b>Nom reçu</b>');
   assert.equal(page.nextSkip, 104);
