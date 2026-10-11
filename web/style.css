@@ -80,7 +80,17 @@ h1 { margin: 0 0 8px; font-size: 24px; font-weight: 600; line-height: 1.25; lett
 .steps span { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--border); color: var(--faint); font-size: 10px; }
 .steps .current { color: var(--text); font-weight: 500; }
 .steps .current span { background: var(--brand); color: white; border-color: transparent; }
-.layout { display: grid; grid-template-columns: minmax(260px, .95fr) minmax(310px, 1.05fr); gap: 20px; }
+.layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.workflow-picker { position: relative; }
+.workflow-dropdown { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; padding: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 8px 24px #0002; }
+#workflow-picker { margin-bottom: 0; }
+.workflow-picker + .field-help { margin-top: 8px; }
+#workflow-options { max-height: 260px; overflow-y: auto; }
+#workflow-options [role=option] { padding: 9px 10px; cursor: pointer; font-size: 12px; overflow-wrap: anywhere; border-radius: 3px; }
+#workflow-options [aria-selected=true], #workflow-options [role=option]:hover { background: var(--hover); }
+#workflow-options [aria-disabled=true] { color: var(--faint); cursor: not-allowed; }
+.workflow-dropdown .field-help { margin: 8px 10px; }
+.review-card { margin: 18px 0; }
 .card { border: 1px solid var(--border); border-radius: 6px; padding: 24px; background: var(--surface); }
 .card-heading { display: flex; align-items: start; gap: 12px; margin-bottom: 22px; }
 .card-number { padding-top: 3px; color: var(--faint); font-size: 11px; }

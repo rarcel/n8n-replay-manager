@@ -21,37 +21,22 @@
       <ol class="steps"><li class="current"><span>1</span>Choisir la source</li><li><span>2</span>Vérifier</li><li><span>3</span>Rejouer et contrôler</li></ol>
       <div class="layout">
         <section class="card source-card" aria-labelledby="source-title">
-          <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Exécution source</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
-          <form id="source-form">
-            <label for="workflow-search">Rechercher un workflow par nom</label>
-            <input id="workflow-search" type="search" maxlength="200" autocomplete="off" placeholder="Une partie du nom…" aria-describedby="workflow-search-help">
-            <p id="workflow-search-help" class="field-help">Tapez une partie du nom, puis appuyez sur Entrée ou cliquez sur Rechercher. La recherche inclut aussi les descriptions. Effacez le champ pour retrouver tous les workflows.</p>
-            <button class="button secondary" id="workflow-search-button" type="button">Rechercher</button>
-            <label for="workflow-id">Workflow à rejouer</label><select id="workflow-id" name="workflow" required><option value="">Chargez les workflows accessibles</option></select>
-            <button class="button secondary" id="workflow-load" type="button">Actualiser les workflows</button>
-            <button class="button secondary" id="workflow-more" type="button" hidden>Plus de workflows</button>
-            <p class="field-help">Vos droits déterminent la sélection. La vérification accepte Webhook, Schedule Trigger, Manual Trigger et When Executed by Another Workflow avec données JSON compatibles. Un sous-workflow est rejoué indépendamment, sans relancer son parent.</p>
-            <label for="execution-id">Identifiant de l’exécution</label><input id="execution-id" name="execution" autocomplete="off" required maxlength="30" inputmode="numeric" spellcheck="false">
-            <p class="field-help">Le rejeu réutilise la sortie JSON enregistrée du déclencheur.</p>
-            <button class="button primary" id="preview-button" type="submit">Vérifier la source <span aria-hidden="true">→</span></button>
-          </form>
-          <div class="read-only-note"><span aria-hidden="true">◇</span> Cette vérification ne lance aucune exécution.</div>
-        </section>
-        <section class="card review-card" aria-labelledby="review-title">
-          <div class="card-heading"><span class="card-number">02</span><div><h2 id="review-title">Avant de rejouer</h2><p>Un dernier regard sur ce qui va être lancé.</p></div></div>
-          <div id="empty-state" class="empty-state"><div class="empty-icon" aria-hidden="true">↻</div><h3>Commencez par une vérification</h3><p>Le workflow, le déclencheur et le nombre d’éléments apparaîtront ici.</p></div>
-          <div id="preview-panel" hidden>
-            <div class="verified-badge">✓ Source vérifiée</div>
-            <dl class="summary"><div><dt>Workflow</dt><dd id="workflow-name"></dd></div><div><dt>Exécution source</dt><dd id="source-id"></dd></div><div><dt>Déclencheur</dt><dd id="trigger-name"></dd></div><div><dt>Éléments à rejouer</dt><dd id="item-count"></dd></div></dl>
-            <p>Destination : <strong>workflow actuel</strong> · version <span id="target-version"></span></p>
-            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>La sortie enregistrée du déclencheur sera utilisée avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
-            <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme le rejeu des données source dans le workflow actuel.</span></label>
-            <button class="button primary" id="replay-button" disabled type="button">Lancer le rejeu <span aria-hidden="true">↻</span></button>
-            <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>
+          <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Choisir le workflow</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
+          <label for="workflow-picker">Workflow à rejouer</label>
+          <div class="workflow-picker">
+            <input id="workflow-picker" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="workflow-options" autocomplete="off" maxlength="200" placeholder="Choisir ou rechercher un workflow…">
+            <div id="workflow-dropdown" class="workflow-dropdown" hidden>
+              <div id="workflow-options" role="listbox" aria-label="Workflows accessibles"></div>
+              <p id="workflow-picker-status" role="status" class="field-help"></p>
+              <button id="workflow-more" class="button secondary" type="button" hidden>Plus de résultats</button>
+            </div>
           </div>
+          <p class="field-help">Tapez pour rechercher, puis choisissez un résultat. Les exécutions du workflow se chargent automatiquement.</p>
+          <form id="source-form" hidden><input id="workflow-id" type="hidden"><input id="execution-id" type="hidden"></form>
+          <div class="read-only-note"><span aria-hidden="true">◇</span> La sélection et les filtres ne lancent aucune exécution.</div>
         </section>
       </div>
-      <section class="card execution-browser" aria-labelledby="executions-title">
+      <section class="card execution-browser" id="execution-browser" aria-labelledby="executions-title">
         <h2 id="executions-title">Choisir les exécutions à relancer</h2>
         <p>Filtrez les sources du workflow choisi. Les dates portent sur le démarrage, dans le fuseau horaire de votre navigateur, avec bornes incluses.</p>
         <form id="execution-filters" class="filters">
@@ -65,6 +50,19 @@
         <div class="result-actions"><button class="button secondary" id="execution-more" type="button" hidden>Page suivante</button><button class="button secondary" id="selection-clear" type="button">Vider la sélection</button><span id="selection-count" role="status">0/50 sélectionnées</span></div>
         <p class="field-help">Sélection explicite, conservée entre les pages. La compatibilité des données sera vérifiée avant tout rejeu.</p>
       </section>
+        <section class="card review-card" id="individual-review" hidden aria-labelledby="review-title">
+          <div class="card-heading"><span class="card-number">02</span><div><h2 id="review-title">Vérifier une source</h2><p>Un dernier regard sur ce qui va être lancé.</p></div></div>
+          <div id="empty-state" class="empty-state"><div class="empty-icon" aria-hidden="true">↻</div><h3>Commencez par une vérification</h3><p>Le workflow, le déclencheur et le nombre d’éléments apparaîtront ici.</p></div>
+          <div id="preview-panel" hidden>
+            <div class="verified-badge">✓ Source vérifiée</div>
+            <dl class="summary"><div><dt>Workflow</dt><dd id="workflow-name"></dd></div><div><dt>Exécution source</dt><dd id="source-id"></dd></div><div><dt>Déclencheur</dt><dd id="trigger-name"></dd></div><div><dt>Éléments à rejouer</dt><dd id="item-count"></dd></div></dl>
+            <p>Destination : <strong>workflow actuel</strong> · version <span id="target-version"></span></p>
+            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>La sortie enregistrée du déclencheur sera utilisée avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
+            <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme le rejeu des données source dans le workflow actuel.</span></label>
+            <button class="button primary" id="replay-button" disabled type="button">Lancer le rejeu <span aria-hidden="true">↻</span></button>
+            <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>
+          </div>
+        </section>
       <section class="card" aria-labelledby="bulk-title">
         <h2 id="bulk-title">Préparer une sélection en lot</h2>
         <p>Vérifiez les sources cochées dans la liste ci-dessus pour le workflow choisi.</p>

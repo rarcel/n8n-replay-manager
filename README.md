@@ -67,7 +67,7 @@ docker compose up -d --build
 
 Ouvrir d'abord `http://localhost:8080/`, effectuer l'installation/connexion n8n normale, puis `http://localhost:8080/replay-manager/` **dans le même navigateur**. Ne pas alterner localhost et 127.0.0.1. Le navigateur doit supporter Web Locks et le stockage local ; localhost fonctionne comme contexte sécurisé dans les navigateurs récents. Sur un serveur distant, HTTPS est requis.
 
-Cette instance est neuve : elle ne contient ni votre workflow ni l'exécution `942538`. Utiliser un workflow de test existant et autorisé avec des effets contrôlés ; ne pas importer une production pour contourner des droits. Les workflows accessibles sont découverts dans le catalogue et leur compatibilité est contrôlée à la simulation. `web/config.mjs` permet de fixer explicitement un nom de déclencheur. Par défaut, `Q4WmdAk9qV7zpK97` garde le nom `Webhook` et `942538` est préremplie. Ces identifiants proviennent du contexte utilisateur.
+Cette instance est neuve : elle ne contient ni votre workflow ni l'exécution `942538`. Utiliser un workflow de test existant et autorisé avec des effets contrôlés ; ne pas importer une production pour contourner des droits. Les workflows accessibles sont découverts dans le catalogue et leur compatibilité est contrôlée à la simulation. `web/config.mjs` permet de fixer explicitement un nom de déclencheur. Par défaut, `Q4WmdAk9qV7zpK97` garde le nom `Webhook` et `942538` reste un identifiant de référence dans la configuration. Ces identifiants proviennent du contexte utilisateur.
 
 Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est accessible par son réseau Docker. `N8N_SECURE_COOKIE=false` est réservé à cette sandbox HTTP. En HTTPS réel, garder les cookies sécurisés et la configuration autorisée de l'instance. L'image nginx `stable-alpine` est un tag évolutif : après validation, pinner son digest dans votre déploiement. Pinner également le digest de n8n 2.42.4 si vous exigez une reconstruction immuable.
 
@@ -89,10 +89,10 @@ Les POST sont séquentiels, avec Web Lock et marqueur individuel avant chaque en
 
 ### Rejeu individuel
 
-Le champ **Rechercher un workflow par nom** accepte une partie du nom. Valider avec Entrée ou **Rechercher** ; la recherche porte sur les noms et descriptions du catalogue n8n accessible, pas seulement les options déjà chargées. **Plus de workflows** conserve la recherche. Effacer le champ puis rechercher rétablit la liste complète. Une nouvelle recherche efface la sélection bulk et les confirmations précédentes.
+Le sélecteur **Workflow à rejouer** intègre la recherche : taper une partie du nom affiche les résultats après une courte pause (noms et descriptions). Choisir explicitement un résultat à la souris ou avec les flèches puis Entrée charge automatiquement les exécutions. Échap ferme la liste ; **Plus de résultats** conserve la recherche. Modifier le texte efface le workflow choisi, la sélection bulk et les confirmations. Une réponse de recherche dépassée est ignorée. Aucun workflow n’est sélectionné automatiquement.
 
 1. Se connecter à l'éditeur n8n sur la même origine.
-2. Ouvrir `/replay-manager/`, choisir le workflow par son nom dans la liste accessible, saisir l'ID source puis cliquer **Vérifier la source**. Le bouton **Plus de workflows** charge la page suivante. Les workflows archivés ou sans droits de lecture/exécution sont non sélectionnables ; les autres restent soumis à la compatibilité du déclencheur. Cette étape est uniquement en lecture.
+2. Ouvrir `/replay-manager/`, choisir le workflow dans le sélecteur, filtrer ses exécutions puis cliquer **Vérifier cette source** sur la ligne souhaitée. Aucun ID n’est à saisir ; le panneau individuel apparaît après vérification. Les workflows archivés ou sans droits de lecture/exécution sont non sélectionnables ; les autres restent soumis à la compatibilité du déclencheur. Cette étape est uniquement en lecture.
 3. Examiner le workflow, le déclencheur et le nombre d'éléments ; confirmer les effets possibles.
 4. Cliquer **Lancer le rejeu**. Session, source et workflow sont relus et le plan est comparé au plan approuvé. Une vérification expire après cinq minutes.
 5. Un nouvel ID signifie seulement **soumis**. Cliquer **Vérifier le résultat**, puis examiner l'exécution et les effets métier dans n8n.

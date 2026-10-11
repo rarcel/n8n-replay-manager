@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Sélecteur de workflow avec recherche intégrée temporisée, liste navigable aux flèches/Entrée/Échap, sélection explicite et réponses dépassées ignorées. Choix charge automatiquement la liste d’exécutions ; IDs masqués, vérification individuelle uniquement depuis une ligne, panneau individuel affiché à la demande après la liste. 49 tests factices passent ; structure HTML et références DOM relues. Parcours visuel non validé ici : aperçu navigateur local inaccessible (connexion refusée). Aucun rejeu réel.
+
 Recherche serveur par fragment de nom ajoutée au catalogue (filter.query, noms et descriptions, pagination take/skip conservée). Contrat DTO/repository n8n 2.42.4 examiné. 47 tests factices passent, notamment encodage du filtre, champ vide et pagination filtrée. Parcours navigateur non validé : les navigateurs de contrôle ont expiré à l’ouverture de l’aperçu localhost ; aucun appel à l’instance réelle.
 
 Refus des pins conservé après vérification des sources officielles 2.42.4 (contrôleur, DTO, service manuel et moteur) : les pins stockés s’appliquent au rejeu manuel et aucun override n’est accepté par le DTO. Message utilisateur explicite ajouté. 46 tests factices passent, dont pins sur trigger/node aval et ajout après aperçu : refus sans POST ni mutation. Aucun rejeu réel.
