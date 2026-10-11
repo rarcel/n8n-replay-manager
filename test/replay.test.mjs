@@ -150,7 +150,7 @@ test('terminal errors with finished=false remain eligible when stoppedAt exists'
 });
 test('simulation only reads and persists no payload', async () => {
   const h = harness(); await h.manager.preview(ids);
-  assert.deepEqual(h.calls, ['user', 'execution', 'workflow']);
+  assert.deepEqual(h.calls, ['user', 'execution', 'workflow', 'user']);
   assert.equal(h.store.map.size, 1);
 });
 test('submit requires preview and explicit confirmation', async () => {

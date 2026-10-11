@@ -67,9 +67,17 @@
         <label for="bulk-ids">Exécutions sélectionnées</label>
         <textarea id="bulk-ids" rows="3" readonly aria-label="IDs des exécutions sélectionnées"></textarea>
         <button class="button secondary" id="bulk-preview" type="button">Vérifier la sélection</button>
-        <p>Préparation en lecture seule. Chaque source est vérifiée individuellement ; aucun lot n’est envoyé.</p>
+        <p>La vérification ne lance rien. Retirez les sources bloquées puis vérifiez à nouveau toute la sélection.</p>
         <p id="bulk-summary" role="status" aria-live="polite"></p>
         <ul id="bulk-results"></ul>
+        <div id="bulk-confirmation" hidden>
+          <p id="bulk-target"></p>
+          <div class="caution"><strong>Les effets peuvent être répétés.</strong><p>Les sorties enregistrées seront rejouées dans la définition et les credentials actuels. Les envois sont séquentiels ; un nouvel ID signifie soumis, sa réussite reste à contrôler.</p></div>
+          <label class="check-label"><input id="bulk-confirm" type="checkbox"><span>Je confirme le rejeu de toutes les sources listées dans le workflow actuel affiché et j’accepte les effets possibles.</span></label>
+          <button id="bulk-run" class="button primary" type="button" disabled>Lancer le lot</button>
+        </div>
+        <button id="bulk-stop" class="button secondary" type="button" hidden>Arrêter après l’envoi en cours</button>
+        <p class="fine-print">Arrêt au premier refus ou envoi ambigu. Aucun retry automatique. Un arrêt ne peut pas annuler un POST déjà parti.</p>
       </section>
       <section class="message" id="message" role="status" aria-live="polite">Connectez-vous à n8n dans ce navigateur, puis vérifiez votre source.</section>
       <section class="card result-card" id="result-panel" hidden aria-labelledby="result-title"><div><div class="eyebrow">SUIVI</div><h2 id="result-title">Dernière tentative pour cette source</h2><p id="result-text"></p></div><div class="result-actions"><a id="result-link" class="button secondary" target="_blank" rel="noopener" hidden>Voir dans n8n ↗</a><button id="check-button" class="button secondary" type="button" hidden>Vérifier le résultat</button></div>

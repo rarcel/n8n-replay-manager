@@ -32,7 +32,7 @@ Seuls ces appels sont effectués :
 | Lire le workflow et ses scopes | GET `/rest/workflows/{id}` |
 | Soumettre après confirmation | POST `/rest/workflows/{id}/run` |
 
-Aucun POST login, retry natif, API publique ou endpoint de modification de workflow n'est utilisé. n8n contrôle session, lecture de l'exécution, scopes du workflow et exécution. L'interface vérifie en plus les scopes `workflow:read` et `workflow:execute`. Le contrôle client n'est pas une frontière d'autorisation : les permissions côté n8n font autorité. La liste dans `web/config.mjs` est un garde-fou de l'interface, pas une restriction serveur opposable à un utilisateur qui emploie l'éditeur ou l'API directement.
+Aucun POST login, retry natif, API publique ou endpoint de modification de workflow n'est utilisé. n8n contrôle session, lecture de l'exécution, scopes du workflow et exécution. L'interface vérifie en plus les scopes `workflow:read` et `workflow:execute`. Le contrôle client n'est pas une frontière d'autorisation : les permissions côté n8n font autorité. `web/config.mjs` conserve les noms de déclencheurs explicites et active la découverte des workflows accessibles ; désactiver cette découverte rétablit la liste configurée comme garde-fou client.
 
 ## Étape 1 — vérifier les fichiers
 
@@ -67,13 +67,13 @@ docker compose up -d --build
 
 Ouvrir d'abord `http://localhost:8080/`, effectuer l'installation/connexion n8n normale, puis `http://localhost:8080/replay-manager/` **dans le même navigateur**. Ne pas alterner localhost et 127.0.0.1. Le navigateur doit supporter Web Locks et le stockage local ; localhost fonctionne comme contexte sécurisé dans les navigateurs récents. Sur un serveur distant, HTTPS est requis.
 
-Cette instance est neuve : elle ne contient ni votre workflow ni l'exécution `942538`. Utiliser un workflow de test existant et autorisé avec des effets contrôlés ; ne pas importer une production pour contourner des droits. Pour ajouter un workflow au manager, ajuster explicitement `web/config.mjs` (ID et nom exact du Webhook), puis reconstruire/redistribuer les fichiers. Par défaut, seul `Q4WmdAk9qV7zpK97` avec trigger `Webhook` est configuré et `942538` est préremplie. Ces identifiants proviennent du contexte utilisateur.
+Cette instance est neuve : elle ne contient ni votre workflow ni l'exécution `942538`. Utiliser un workflow de test existant et autorisé avec des effets contrôlés ; ne pas importer une production pour contourner des droits. Les workflows accessibles sont découverts dans le catalogue et leur compatibilité est contrôlée à la simulation. `web/config.mjs` permet de fixer explicitement un nom de déclencheur. Par défaut, `Q4WmdAk9qV7zpK97` garde le nom `Webhook` et `942538` est préremplie. Ces identifiants proviennent du contexte utilisateur.
 
 Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est accessible par son réseau Docker. `N8N_SECURE_COOKIE=false` est réservé à cette sandbox HTTP. En HTTPS réel, garder les cookies sécurisés et la configuration autorisée de l'instance. L'image nginx `stable-alpine` est un tag évolutif : après validation, pinner son digest dans votre déploiement. Pinner également le digest de n8n 2.42.4 si vous exigez une reconstruction immuable.
 
 ## Étape 3 — vérifier puis rejouer
 
-### Préparation d'une sélection bulk (lecture seule)
+### Rejeu d'une sélection bulk
 
 Choisir un workflow par son nom, puis utiliser les filtres **Succès et erreurs**, **Erreurs** ou **Succès** et l'intervalle de démarrage. Les dates sont saisies dans le fuseau du navigateur, converties en UTC pour n8n ; les deux bornes sont incluses. Les exécutions en cours ou en attente ne sont pas proposées au rejeu. Une erreur terminale avec `finished=false` reste admise si `stoppedAt` est présent.
 
@@ -81,17 +81,17 @@ La liste est paginée par 50 résumés avec le curseur opaque `nextCursor` retou
 
 **Vérifier la sélection** relit chaque source selon les règles du rejeu individuel. Le récapitulatif affiche ID, compatibilité, nombre d'éléments et destination actuelle ; les tentatives locales existantes sont signalées comme bloquées. Les résumés ne prouvent pas la compatibilité des données. Les IDs non numériques, sources sans fin ou sans scopes requis ne sont pas sélectionnables. Aucun payload ni sélection n'est persisté. Modifier la sélection efface le récapitulatif. Une réponse de liste incompatible, un curseur répété ou un changement de compte vide la sélection.
 
-Cette préparation ne conserve aucune approbation permettant un POST et ne propose pas encore de confirmation globale ni de lancement de lot.
+Après une vérification entièrement compatible, examiner les IDs, les déclencheurs, le total d'éléments, le workflow actuel et sa version, puis cocher la confirmation des effets et cliquer **Lancer le lot**. Une source bloquée empêche tout le lot : la retirer et revérifier, sans exclusion silencieuse. Les approbations conservent uniquement IDs et empreintes en mémoire, sans payload, et expirent après cinq minutes. Chaque source, workflow et compte sont relus avant son POST, avec comparaison au plan approuvé.
 
-Un aperçu interactif avec réponses factices est disponible via `node scripts/preview-fixtures.mjs`, puis `http://127.0.0.1:8090/replay-manager/`. Il utilise un identifiant synthétique uniquement en mémoire dans son adaptateur de test, sans toucher à `n8n-browserId`. Il refuse toutes les écritures et ne relaie aucune requête vers n8n. Ne pas déployer ce script comme serveur du manager.
+Un aperçu interactif avec réponses factices est disponible via `node scripts/preview-fixtures.mjs`, puis `http://127.0.0.1:8090/replay-manager/`. Il utilise un identifiant synthétique uniquement en mémoire dans son adaptateur de test, sans toucher à `n8n-browserId`. Par défaut il refuse toutes les écritures. Pour le parcours de soumission factice, lancer dans PowerShell `$env:FIXTURE_RUNS='1'; node scripts/preview-fixtures.mjs` : seuls des POST synthétiques locaux sont acceptés, sans relais ni exécution de workflow. Ne pas déployer ce script comme serveur du manager.
 
-Politique retenue pour le futur envoi séquentiel : arrêter au premier refus ou résultat d'envoi ambigu, conserver les marqueurs des tentatives et laisser les sources restantes non envoyées. Un arrêt demandé prendra effet entre deux envois sans annuler un POST en cours. Une réponse de soumission ne prouve pas le succès métier. L'envoi nécessitera une nouvelle simulation, une confirmation globale explicite de la destination et des effets, puis une relecture/comparaison de chaque plan avant son POST. Cette orchestration reste à réaliser.
+Les POST sont séquentiels, avec Web Lock et marqueur individuel avant chaque envoi. Le lot s'arrête au premier refus de revalidation/soumission, à une réponse perdue ou à une attente Webhook. **Arrêter après l'envoi en cours** laisse les sources restantes non envoyées ; il ne peut pas annuler une tentative en cours. Les IDs reçus signifient seulement **soumis** ; cette politique ne détecte pas automatiquement une erreur métier survenant après la réponse du POST. Utiliser **Vérifier le résultat** pour chaque source, sans polling automatique. **Examiner la tentative** ouvre le panneau individuel ; tout déblocage reste soumis à acknowledgement explicite. Après arrêt/erreur, sélectionner uniquement les sources non envoyées et effectuer une nouvelle simulation et confirmation, sans retry automatique.
 
 ### Rejeu individuel
 
 1. Se connecter à l'éditeur n8n sur la même origine.
-2. Ouvrir `/replay-manager/`, choisir le workflow par son nom dans la liste accessible, saisir l'ID source puis cliquer **Vérifier la source**. Le bouton **Plus de workflows** charge la page suivante. Les workflows hors configuration, archivés ou sans droits de lecture/exécution sont affichés mais non sélectionnables. Cette étape est uniquement en lecture.
-3. Examiner le workflow, le Webhook et le nombre d'éléments ; confirmer les effets possibles.
+2. Ouvrir `/replay-manager/`, choisir le workflow par son nom dans la liste accessible, saisir l'ID source puis cliquer **Vérifier la source**. Le bouton **Plus de workflows** charge la page suivante. Les workflows archivés ou sans droits de lecture/exécution sont non sélectionnables ; les autres restent soumis à la compatibilité du déclencheur. Cette étape est uniquement en lecture.
+3. Examiner le workflow, le déclencheur et le nombre d'éléments ; confirmer les effets possibles.
 4. Cliquer **Lancer le rejeu**. Session, source et workflow sont relus et le plan est comparé au plan approuvé. Une vérification expire après cinq minutes.
 5. Un nouvel ID signifie seulement **soumis**. Cliquer **Vérifier le résultat**, puis examiner l'exécution et les effets métier dans n8n.
 

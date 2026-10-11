@@ -1,11 +1,12 @@
 import { config } from './config.mjs';
 import './theme.mjs';
 import { createApi, createManager } from './client.mjs';
-import { parseSelection, prepareSelection } from './bulk.mjs';
+import { parseSelection, createBulkManager } from './bulk.mjs';
 import { workflowPage } from './catalog.mjs';
 import { createExplorer, localDateToIso } from './explorer.mjs';
 const $ = id => document.getElementById(id);
 const messages = {
+  another_operation_busy: 'Une opération est déjà en cours.',
   invalid_filter: 'Les filtres ou la pagination sont invalides.',
   bulk_selection_invalid: 'Sélectionnez de 1 à 50 IDs valides pour un même workflow.',
   bulk_duplicate: 'La sélection contient un ID répété. Retirez le doublon.',
@@ -48,16 +49,21 @@ let busy = false, ready = false, record = null;
 const api = createApi({storage: localStorage});
 const manager = createManager({api, storage: localStorage, locks: navigator.locks, config});
 const explorer = createExplorer({api, config});
+const bulk = createBulkManager({api, storage: localStorage, locks: navigator.locks, config});
+let bulkReady = false, bulkRunning = false;
 const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('execution-id').value.trim()});
 $('execution-id').value = config.defaultExecutionId;
 let workflowSkip = null, catalogUser = null;
 function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
-  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear']) $(id).disabled = busy;
+  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm']) $(id).disabled = busy;
   document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
   $('bulk-preview').disabled = busy || !explorer.selection().length;
   $('execution-search').disabled = busy || !$('workflow-id').value;
   $('selection-clear').disabled = busy || !explorer.selection().length;
+  $('bulk-run').disabled = busy || !bulkReady || !$('bulk-confirm').checked;
+  $('bulk-stop').hidden = !bulkRunning;
+  document.querySelectorAll('#bulk-results button').forEach(button => { button.disabled = busy; });
   $('replay-button').disabled = busy || !ready || !!record || !$('confirm-effects').checked;
   $('release-button').disabled = busy || !$('confirm-release').checked;
 }
@@ -92,7 +98,7 @@ async function action(callback) {
 $('source-form').addEventListener('submit', event => {
   event.preventDefault();
   action(async () => {
-    invalidate(); say('Vérification de la session, des droits et de la source…');
+    invalidate(); clearBulk(); say('Vérification de la session, des droits et de la source…');
     const result = await manager.preview(ids());
     $('session-status').textContent = `Connecté · ${result.user.firstName || 'Utilisateur n8n'}`;
     $('workflow-name').textContent = result.plan.workflowName;
@@ -124,24 +130,67 @@ $('release-button').addEventListener('click', () => action(async () => {
 }));
 stage(1); sync();
 
-function clearBulk() { $('bulk-results').replaceChildren(); $('bulk-summary').textContent = ''; }
+function clearBulk() {
+  bulk.clearApproval(); bulkReady = false; $('bulk-confirm').checked = false;
+  $('bulk-confirmation').hidden = true; $('bulk-target').textContent = '';
+  $('bulk-results').replaceChildren(); $('bulk-summary').textContent = '';
+}
 $('workflow-id').addEventListener('input', resetExplorer);
 $('bulk-preview').addEventListener('click', () => action(async () => {
   invalidate(); clearBulk();
   const selection = parseSelection(ids().workflowId, explorer.selection().join(' '), config);
-  const render = rows => {
-    $('bulk-results').replaceChildren();
-    for (const row of rows) {
-      const li = document.createElement('li');
-      li.textContent = `${row.executionId} · ${row.code === 'compatible' ? `${row.itemCount} élément(s) · destination actuelle : ${row.workflowName} · version ${row.versionId}` : messages[row.code] ?? 'Source incompatible.'}`;
-      $('bulk-results').append(li);
-    }
-    $('bulk-summary').textContent = `${rows.length}/${selection.length} vérifiées · ${rows.filter(row => row.code === 'compatible').length} compatibles. Aucun envoi.`;
-  };
+  const render = rows => { renderBulkRows(rows);
+    $('bulk-summary').textContent = `${rows.length}/${selection.length} vérifiées · ${rows.filter(row => row.code === 'compatible').length} compatibles. Aucun envoi.`; };
   try {
-    await prepareSelection({selection, api, storage: localStorage, locks: navigator.locks, config, onProgress: render});
-    say('Sélection vérifiée. Les sources bloquées restent exclues ; une nouvelle validation sera nécessaire avant tout envoi.');
+    const result = await bulk.preview(selection, render); bulkReady = result.runnable;
+    $('bulk-confirmation').hidden = !bulkReady;
+    if (bulkReady) {
+      const first = result.rows[0];
+      $('bulk-target').textContent = `${result.rows.length} sources · ${result.rows.reduce((sum, row) => sum + row.itemCount, 0)} éléments · destination : workflow actuel ${first.workflowName} (${ids().workflowId}) · version ${first.versionId}.`;
+    }
+    say(bulkReady ? 'Toutes les sources sont compatibles. Examinez la destination et confirmez les effets avant de lancer le lot.' : 'Lot bloqué. Retirez les sources incompatibles ou déjà réservées puis vérifiez à nouveau.');
   } catch (error) { clearBulk(); throw error; }
+}));
+
+function renderBulkRows(rows) {
+  const workflowId = ids().workflowId;
+  $('bulk-results').replaceChildren();
+  for (const row of rows) {
+    const li = document.createElement('li'), text = document.createElement('span');
+    const state = {not_sent: 'Non envoyée', sending: 'Dernière vérification / envoi en cours', submitted: `Soumise : ${row.resultExecutionId} · réussite à vérifier`, blocked: messages[row.code] ?? 'Envoi bloqué ou résultat inconnu'};
+    text.textContent = `${row.executionId} · ${row.status ? state[row.status] : row.code === 'compatible' ? `${row.itemCount} élément(s) · ${row.trigger} · ${row.workflowName} · version ${row.versionId}` : messages[row.code] ?? 'Source incompatible.'}`;
+    li.append(text);
+    if (row.status === 'submitted') {
+      const link = document.createElement('a'); link.className = 'button secondary'; link.textContent = 'Voir dans n8n'; link.target = '_blank'; link.rel = 'noopener';
+      link.href = `/workflow/${encodeURIComponent(workflowId)}/executions/${row.resultExecutionId}`; li.append(link);
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'button secondary'; button.textContent = 'Vérifier le résultat';
+      button.addEventListener('click', () => action(async () => {
+        const result = await manager.check({workflowId, executionId: row.executionId});
+        text.textContent = `${row.executionId} → ${result.id} · ${result.status === 'success' && result.stoppedAt ? 'Terminée avec succès ; vérifiez aussi les effets métier.' : result.status === 'error' ? 'Terminée en erreur.' : `État : ${result.status ?? 'indisponible'}.`}`;
+      })); li.append(button);
+    }
+    if (row.code === 'existing_reservation' || row.status === 'blocked') {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'button secondary'; button.textContent = 'Examiner la tentative';
+      button.addEventListener('click', () => { $('execution-id').value = row.executionId; invalidate(); $('source-form').requestSubmit(); }); li.append(button);
+    }
+    $('bulk-results').append(li);
+  }
+  sync();
+}
+$('bulk-confirm').addEventListener('change', sync);
+$('bulk-stop').addEventListener('click', () => { bulk.stop(); $('bulk-stop').disabled = true; say('Arrêt demandé. Aucun nouvel envoi après la tentative en cours.'); });
+$('bulk-run').addEventListener('click', () => action(async () => {
+  const selection = parseSelection(ids().workflowId, explorer.selection().join(' '), config);
+  const confirmed = $('bulk-confirm').checked;
+  bulkReady = false; bulkRunning = true; $('bulk-confirm').checked = false; $('bulk-confirmation').hidden = true; $('bulk-stop').disabled = false; sync();
+  try {
+    const result = await bulk.submit(selection, confirmed, rows => {
+      renderBulkRows(rows);
+      $('bulk-summary').textContent = `${rows.filter(row => row.status === 'submitted').length}/${rows.length} soumises · ${rows.filter(row => row.status === 'not_sent').length} non envoyées.`;
+    });
+    renderBulkRows(result.rows);
+    say(result.reason === 'complete' ? 'Lot soumis. Vérifiez chaque résultat et les effets métier.' : result.reason === 'stopped' ? 'Lot arrêté entre deux envois. Les sources restantes n’ont pas été envoyées.' : 'Lot interrompu au premier refus ou résultat ambigu. Examinez la tentative avant toute nouvelle action.', result.reason === 'error');
+  } finally { bulkRunning = false; sync(); }
 }));
 async function loadWorkflows(more = false) {
   const previous = $('workflow-id').value;

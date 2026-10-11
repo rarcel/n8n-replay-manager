@@ -2,6 +2,9 @@
 
 ## Réalisé
 
+- Lot séquentiel : 41 tests factices réussis. Confirmation et sélection exacte obligatoires, compatibilité intégrale, expiration, revalidation individuelle, stockage/verrous obligatoires, arrêt entre POST, arrêt au premier refus/ambiguïté, protection persistante et absence de payload persisté. Les approbations ne retiennent plus de plan brut. L'identité est aussi vérifiée après chaque aperçu individuel.
+- Chrome avec serveur local en mode `FIXTURE_RUNS=1` : lot 101/102, lancement désactivé avant confirmation, deux POST simulés (compteur exact), résultats 1001/1002, contrôle individuel de 1001, reload puis préparation de 101 bloquée par son marqueur, compteur toujours à deux POST. Capture de suivi `previews/bulk-submission-fixtures.png`. Aucun appel à n8n réel. L'arrêt manuel est couvert par tests unitaires factices ; son parcours UI n'a pas été exercé ici.
+
 - Extension Webhook / Schedule Trigger / Manual Trigger : chemin known-trigger du service et moteur n8n 2.42.4 examiné. Découverte activée pour les workflows accessibles ; sortie enregistrée uniquement, contrôle de type historique connu et refus d'ambiguïté. 36 tests factices passent ; aucune validation réelle des deux nouveaux types.
 
 - Liste filtrée et sélection bulk : 34 tests Node factices réussis via `node scripts/validate.mjs`. Contrats n8n 2.42.4 vérifiés dans les sources publiques : status sous forme de tableau, bornes inclusives startedAfter/startedBefore, limit/cursor et réponse results/nextCursor/count/estimated. Tests de conservation des filtres/sélection entre pages, limite de 50, refus des résumés incohérents/scopes absents/IDs incompatibles, changement de compte et curseurs répétés. Aucun override de redaction.

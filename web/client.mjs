@@ -53,7 +53,7 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
   };
 }
 const keyFor = (userId, ids) => 'replay-manager:v2:' + JSON.stringify([userId, ids.workflowId, ids.executionId]);
-export function createManager({api, storage, locks, config, digest = digestPlan}) {
+export function createManager({api, storage, locks, config, digest = digestPlan, now = Date.now}) {
   let approved = null;
   const read = key => { try { const raw = storage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { throw new ReplayError('storage_unavailable'); } };
   const write = (key, value) => { try { storage.setItem(key, JSON.stringify(value)); } catch { throw new ReplayError('storage_unavailable'); } };
@@ -74,13 +74,14 @@ export function createManager({api, storage, locks, config, digest = digestPlan}
       const user = await identity();
       const plan = await load(ids);
       const digestValue = await digest(plan);
-      approved = {userId: user.id, ids: {...ids}, plan, digest: digestValue, time: Date.now()};
+      if ((await identity()).id !== user.id) throw new ReplayError('session_changed');
+      approved = {userId: user.id, ids: {...ids}, digest: digestValue, time: now()};
       return {user, plan, record: read(keyFor(user.id, ids))};
     },
     async submit(ids, confirmed) {
       const approval = approved;
       approved = null; // A failed or ambiguous submission must be previewed again.
-      if (!confirmed || !approval || JSON.stringify(ids) !== JSON.stringify(approval.ids) || Date.now() - approval.time > 5 * 60000) throw new ReplayError('preview_required');
+      if (!confirmed || !approval || JSON.stringify(ids) !== JSON.stringify(approval.ids) || now() - approval.time > 5 * 60000) throw new ReplayError('preview_required');
       const user = await identity();
       if (user.id !== approval.userId) throw new ReplayError('session_changed');
       return locked(user, ids, async key => {

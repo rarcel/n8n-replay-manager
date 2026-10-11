@@ -16,11 +16,13 @@ Lire AGENTS.md, README.md et VALIDATION.md avant modification. Le POC utilise le
 
 ## Prochaine évolution
 
-Mise à jour : la sélection par workflow, filtres de statut/dates et pagination de résumés est maintenant implémentée. La prochaine tâche est la confirmation globale et l'orchestration séquentielle des envois, avec arrêt entre POST, suivi et marqueurs individuels. Ne pas envoyer de lot réel sans demande applicable.
+Mise à jour : sélection, pagination, confirmation globale, envoi séquentiel, progression, arrêt entre POST et résultats individuels sont implémentés. Préparer ensuite l'intégration Traefik sans déploiement ; valider les contrats réels uniquement sur instance autorisée. Les autres types de déclencheurs restent à étudier séparément. Ne pas envoyer de lot réel sans demande applicable.
 
 Préparer la sélection bulk des exécutions d'un même workflow : pagination selon le contrat réel de l'API, sélection explicite, vérification individuelle et récapitulatif avant confirmation globale. Rejeux séquentiels, progression et résultat individuel, arrêt entre deux envois, protection contre doublons. Définir la politique en cas d'erreur. Ne pas lancer un lot réel sans demande applicable. Le bulk n'est pas implémenté à la migration.
 
 ## État local
+
+Lot exécutable après compatibilité intégrale et confirmation globale : réutilisation du manager individuel pour chaque revalidation/lock/marqueur/POST, aucune approbation brute persistée, arrêt au premier refus ou ambiguïté. 41 tests factices passent ; Chrome a reçu exactement deux POST simulés puis reload a bloqué un doublon. Pas de rejeu réel. Les anciennes notes de préparation ci-dessous sont historiques.
 
 Extension aux sorties JSON enregistrées de Webhook, Schedule Trigger et Manual Trigger. Découverte des workflows accessibles activée, avec détection d'un seul déclencheur exécuté compatible ; les workflows explicitement configurés gardent leur nom de déclencheur. Chat/formulaires/sous-workflows/autres types exclus. 36 tests factices passent. Aucun test réel des nouveaux types.
 
