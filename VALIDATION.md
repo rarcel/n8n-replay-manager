@@ -2,6 +2,9 @@
 
 ## Réalisé
 
+- Liste filtrée et sélection bulk : 34 tests Node factices réussis via `node scripts/validate.mjs`. Contrats n8n 2.42.4 vérifiés dans les sources publiques : status sous forme de tableau, bornes inclusives startedAfter/startedBefore, limit/cursor et réponse results/nextCursor/count/estimated. Tests de conservation des filtres/sélection entre pages, limite de 50, refus des résumés incohérents/scopes absents/IDs incompatibles, changement de compte et curseurs répétés. Aucun override de redaction.
+- Parcours Chrome avec `scripts/preview-fixtures.mjs` : choix par nom (nom contenant `<test>` affiché comme texte), deux pages de résumés, sélection de 101 puis 103 conservée, vérification individuelle des deux sources en bulk sans envoi, changement de statut/dates effaçant la sélection et filtrant la source 101, ouverture de la simulation individuelle avec bouton de lancement bloqué sans confirmation. Rendu desktop examiné ; contrôle à 390 pixels sans débordement horizontal de la page, tableau avec scroll interne. Capture factice : `previews/bulk-selection-fixtures.png`. Aucune session ou instance n8n réelle utilisée.
+
 - Sélecteur de workflows : contrat public du contrôleur et middleware de liste 2.42.4 examiné (`take`, `skip`, `includeScopes`, enveloppe `{data, count}`). Catalogue accessible avec garde-fou de configuration/scopes/archive et contrôle de compte. 29 tests factices réussis via `node scripts/validate.mjs`. Aucune connexion à l'instance réelle.
 
 - Préparation bulk en lecture seule : 26 tests Node réussis, 0 échec via `node scripts/validate.mjs`. Nouveaux tests : IDs uniques et limite de 50, un seul workflow, résultats individuels dont données masquées, absence de POST/persistance de payloads, arrêt sur changement de compte ou de définition actuelle. Aucun lot réel envoyé. Le nouveau panneau n'a pas été validé visuellement dans un navigateur ni sur une instance n8n réelle.

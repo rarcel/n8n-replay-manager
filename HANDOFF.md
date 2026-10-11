@@ -16,9 +16,13 @@ Lire AGENTS.md, README.md et VALIDATION.md avant modification. Le POC utilise le
 
 ## Prochaine évolution
 
+Mise à jour : la sélection par workflow, filtres de statut/dates et pagination de résumés est maintenant implémentée. La prochaine tâche est la confirmation globale et l'orchestration séquentielle des envois, avec arrêt entre POST, suivi et marqueurs individuels. Ne pas envoyer de lot réel sans demande applicable.
+
 Préparer la sélection bulk des exécutions d'un même workflow : pagination selon le contrat réel de l'API, sélection explicite, vérification individuelle et récapitulatif avant confirmation globale. Rejeux séquentiels, progression et résultat individuel, arrêt entre deux envois, protection contre doublons. Définir la politique en cas d'erreur. Ne pas lancer un lot réel sans demande applicable. Le bulk n'est pas implémenté à la migration.
 
 ## État local
+
+Liste d'exécutions via GET /rest/executions : filter workflowId/status/startedAfter/startedBefore, limit=50 et cursor opaque, contrat vérifié au tag 2.42.4. Cases explicites, sélection jusqu'à 50 conservée entre pages ; changements de filtres/workflow et erreurs de pagination/session invalident les choix. 34 tests factices passent ; parcours Chrome factice et rendu mobile vérifiés. `scripts/preview-fixtures.mjs` ne relaie rien et refuse toutes les écritures. Les notes de migration ci-dessous décrivent les étapes précédentes ; la pagination n'est plus en attente.
 
 Sélecteur de workflows accessible ajouté avec noms et IDs, pagination take/skip et scopes n8n. Seuls les workflows configurés, non archivés et avec droits read/execute sont sélectionnables. 29 tests factices passent ; aucun changement de configuration de rejeu.
 

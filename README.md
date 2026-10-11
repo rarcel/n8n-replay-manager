@@ -27,6 +27,7 @@ Seuls ces appels sont effectués :
 |---|---|
 | Vérifier le compte courant | GET `/rest/login` |
 | Choisir un workflow accessible | GET `/rest/workflows?take=100&skip=…&includeScopes=true` |
+| Filtrer les résumés d'exécution | GET `/rest/executions?limit=50&filter=…&cursor=…` |
 | Lire source/résultat | GET `/rest/executions/{id}` |
 | Lire le workflow et ses scopes | GET `/rest/workflows/{id}` |
 | Soumettre après confirmation | POST `/rest/workflows/{id}/run` |
@@ -74,9 +75,15 @@ Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est acce
 
 ### Préparation d'une sélection bulk (lecture seule)
 
-Le panneau de sélection utilise le workflow saisi et accepte de 1 à 50 IDs explicitement choisis dans n8n, séparés par espaces, virgules, points-virgules ou retours à la ligne. Les doublons sont refusés. Chaque source est vérifiée séparément avec les règles du rejeu individuel. Le récapitulatif affiche ID, compatibilité, nombre d'éléments et destination actuelle ; les tentatives locales existantes sont signalées comme bloquées. Aucun payload ni sélection n'est persisté. Modifier la sélection ou le workflow efface le récapitulatif.
+Choisir un workflow par son nom, puis utiliser les filtres **Succès et erreurs**, **Erreurs** ou **Succès** et l'intervalle de démarrage. Les dates sont saisies dans le fuseau du navigateur, converties en UTC pour n8n ; les deux bornes sont incluses. Les exécutions en cours ou en attente ne sont pas proposées au rejeu. Une erreur terminale avec `finished=false` reste admise si `stoppedAt` est présent.
 
-Cette préparation ne conserve aucune approbation permettant un POST et ne propose pas encore de confirmation globale ni de lancement de lot. La liste paginée reste à implémenter après vérification du contrat détaillé au tag 2.42.4 ; aucun paramètre de pagination n'est supposé.
+La liste est paginée par 50 résumés avec le curseur opaque `nextCursor` retourné par n8n 2.42.4, sans `firstId`/`lastId`. Le total peut être estimé ou indisponible. Cocher explicitement jusqu'à 50 sources ; les choix sont conservés entre les pages et effacés si le workflow ou les filtres changent. Aucune sélection automatique de toutes les correspondances n'est effectuée. **Vider la sélection** efface les choix, et **Vérifier cette source** ouvre la simulation individuelle sans lancement.
+
+**Vérifier la sélection** relit chaque source selon les règles du rejeu individuel. Le récapitulatif affiche ID, compatibilité, nombre d'éléments et destination actuelle ; les tentatives locales existantes sont signalées comme bloquées. Les résumés ne prouvent pas la compatibilité des données. Les IDs non numériques, sources sans fin ou sans scopes requis ne sont pas sélectionnables. Aucun payload ni sélection n'est persisté. Modifier la sélection efface le récapitulatif. Une réponse de liste incompatible, un curseur répété ou un changement de compte vide la sélection.
+
+Cette préparation ne conserve aucune approbation permettant un POST et ne propose pas encore de confirmation globale ni de lancement de lot.
+
+Un aperçu interactif avec réponses factices est disponible via `node scripts/preview-fixtures.mjs`, puis `http://127.0.0.1:8090/replay-manager/`. Il utilise un identifiant synthétique uniquement en mémoire dans son adaptateur de test, sans toucher à `n8n-browserId`. Il refuse toutes les écritures et ne relaie aucune requête vers n8n. Ne pas déployer ce script comme serveur du manager.
 
 Politique retenue pour le futur envoi séquentiel : arrêter au premier refus ou résultat d'envoi ambigu, conserver les marqueurs des tentatives et laisser les sources restantes non envoyées. Un arrêt demandé prendra effet entre deux envois sans annuler un POST en cours. Une réponse de soumission ne prouve pas le succès métier. L'envoi nécessitera une nouvelle simulation, une confirmation globale explicite de la destination et des effets, puis une relecture/comparaison de chaque plan avant son POST. Cette orchestration reste à réaliser.
 
@@ -133,5 +140,6 @@ Sources examinées au tag n8n@2.42.4 :
 - [Identifiant navigateur](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/%40n8n/constants/src/browser.ts) et [client REST](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/frontend/%40n8n/rest-api-client/src/utils.ts).
 - [Authentification](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/auth/auth.service.ts) et [compte courant](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/controllers/auth.controller.ts).
 - [Lecture et droits des exécutions](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/executions.controller.ts) et [sérialisation](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/execution.service.ts).
+- [Pagination par curseur](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/parse-range-query.middleware.ts), [réponse de liste](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/execution-list-v1.service.ts), [bornes de dates](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/%40n8n/db/src/repositories/execution.repository.ts) et [pagination des workflows](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/middlewares/list-query/pagination.ts).
 - [Contrôleur de rejeu](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/workflows/workflows.controller.ts), [DTO](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/%40n8n/api-types/src/dto/workflows/manual-run.dto.ts), [moteur](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/core/src/execution-engine/workflow-execute.ts) et [test webhooks](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/webhooks/test-webhooks.ts).
 - [Avis de sécurité flatted](https://github.com/WebReflection/flatted/security/advisories) ; version 3.4.4 intégrée avec licence et empreinte vérifiée.

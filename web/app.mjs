@@ -3,6 +3,7 @@ import './theme.mjs';
 import { createApi, createManager } from './client.mjs';
 import { parseSelection, prepareSelection } from './bulk.mjs';
 import { workflowPage } from './catalog.mjs';
+import { createExplorer, localDateToIso } from './explorer.mjs';
 const $ = id => document.getElementById(id);
 const messages = {
   invalid_filter: 'Les filtres ou la pagination sont invalides.',
@@ -46,12 +47,17 @@ const messages = {
 let busy = false, ready = false, record = null;
 const api = createApi({storage: localStorage});
 const manager = createManager({api, storage: localStorage, locks: navigator.locks, config});
+const explorer = createExplorer({api, config});
 const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('execution-id').value.trim()});
 $('execution-id').value = config.defaultExecutionId;
 let workflowSkip = null, catalogUser = null;
 function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
-  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more']) $(id).disabled = busy;
+  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear']) $(id).disabled = busy;
+  document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
+  $('bulk-preview').disabled = busy || !explorer.selection().length;
+  $('execution-search').disabled = busy || !$('workflow-id').value;
+  $('selection-clear').disabled = busy || !explorer.selection().length;
   $('replay-button').disabled = busy || !ready || !!record || !$('confirm-effects').checked;
   $('release-button').disabled = busy || !$('confirm-release').checked;
 }
@@ -73,6 +79,11 @@ async function action(callback) {
   try { await callback(); }
   catch (error) {
     ready = false; $('confirm-effects').checked = false;
+    if (['session_changed', 'session_expired', 'open_editor_first'].includes(error.code)) {
+      resetExplorer(); manager.clearApproval();
+      $('workflow-id').replaceChildren(new Option('Actualisez les workflows après connexion', ''));
+      workflowSkip = null; catalogUser = null; $('workflow-more').hidden = true;
+    }
     const versions = error.versions ? ` Version source : ${error.versions.source ?? 'absente'} ; version actuelle : ${error.versions.current ?? 'absente'}.` : '';
     say((messages[error.code] ?? 'L’opération a échoué. Vérifiez son état dans n8n avant toute nouvelle tentative.') + versions, true);
     try { showRecord(await manager.getRecord(ids())); } catch {}
@@ -114,11 +125,10 @@ $('release-button').addEventListener('click', () => action(async () => {
 stage(1); sync();
 
 function clearBulk() { $('bulk-results').replaceChildren(); $('bulk-summary').textContent = ''; }
-$('workflow-id').addEventListener('input', clearBulk);
-$('bulk-ids').addEventListener('input', clearBulk);
+$('workflow-id').addEventListener('input', resetExplorer);
 $('bulk-preview').addEventListener('click', () => action(async () => {
   invalidate(); clearBulk();
-  const selection = parseSelection(ids().workflowId, $('bulk-ids').value, config);
+  const selection = parseSelection(ids().workflowId, explorer.selection().join(' '), config);
   const render = rows => {
     $('bulk-results').replaceChildren();
     for (const row of rows) {
@@ -136,7 +146,7 @@ $('bulk-preview').addEventListener('click', () => action(async () => {
 async function loadWorkflows(more = false) {
   const previous = $('workflow-id').value;
   if (!more) {
-    invalidate(); clearBulk(); $('bulk-ids').value = '';
+    invalidate(); resetExplorer();
     $('workflow-id').replaceChildren(new Option('Choisir un workflow', ''));
     workflowSkip = null; catalogUser = null; $('workflow-more').hidden = true;
   }
@@ -159,5 +169,63 @@ async function loadWorkflows(more = false) {
 }
 $('workflow-load').addEventListener('click', () => action(() => loadWorkflows()));
 $('workflow-more').addEventListener('click', () => action(() => loadWorkflows(true)));
-$('workflow-id').addEventListener('change', () => { invalidate(); clearBulk(); $('bulk-ids').value = ''; });
+$('workflow-id').addEventListener('change', () => { invalidate(); resetExplorer(); });
+
+function syncSelection() {
+  $('bulk-ids').value = explorer.selection().join('\n');
+  $('selection-count').textContent = `${explorer.selection().length}/50 sélectionnées`;
+  clearBulk(); sync();
+}
+function resetExplorer() {
+  explorer.reset(); $('execution-rows').replaceChildren(); $('execution-more').hidden = true;
+  $('execution-list-status').textContent = 'Choisissez un workflow puis appliquez les filtres.';
+  syncSelection();
+}
+function renderPage(page) {
+  $('execution-rows').replaceChildren();
+  for (const row of page.rows) {
+    const tr = document.createElement('tr');
+    const choice = document.createElement('td'), checkbox = document.createElement('input');
+    checkbox.type = 'checkbox'; checkbox.checked = explorer.selection().includes(row.id);
+    checkbox.dataset.blocked = String(!row.selectable); checkbox.disabled = !row.selectable;
+    checkbox.setAttribute('aria-label', `Sélectionner l’exécution ${row.id}`);
+    checkbox.title = row.reason; choice.append(checkbox); tr.append(choice);
+    checkbox.addEventListener('change', () => {
+      try { explorer.select(row.id, checkbox.checked); invalidate(); syncSelection(); }
+      catch (error) { checkbox.checked = explorer.selection().includes(row.id); say(messages[error.code] ?? 'Sélection impossible.', true); }
+    });
+    for (const text of [row.id, row.status === 'success' ? 'Succès' : 'Erreur', row.startedAt ? new Date(row.startedAt).toLocaleString('fr-FR') : 'Sans date de démarrage']) {
+      const td = document.createElement('td'); td.textContent = text; tr.append(td);
+    }
+    const cell = document.createElement('td');
+    if (row.selectable) {
+      const button = document.createElement('button'); button.className = 'button secondary'; button.type = 'button'; button.textContent = 'Vérifier cette source';
+      button.addEventListener('click', () => { $('execution-id').value = row.id; invalidate(); $('source-form').requestSubmit(); });
+      cell.append(button);
+    } else cell.textContent = row.reason;
+    tr.append(cell); $('execution-rows').append(tr);
+  }
+  $('execution-more').hidden = page.nextCursor === null;
+  const total = page.count === -1 ? 'total indisponible' : `${page.estimated ? 'environ ' : ''}${page.count} au total`;
+  $('execution-list-status').textContent = page.rows.length ? `${page.rows.length} exécution${page.rows.length > 1 ? 's' : ''} sur cette page · ${total}.` : 'Aucune exécution sur cette page pour ces filtres.';
+  sync();
+}
+for (const id of ['filter-status', 'filter-after', 'filter-before']) $(id).addEventListener('input', () => { invalidate(); resetExplorer(); });
+$('execution-filters').addEventListener('submit', event => {
+  event.preventDefault();
+  action(async () => {
+    invalidate(); resetExplorer();
+    const page = await explorer.search({workflowId: ids().workflowId, status: $('filter-status').value,
+      startedAfter: localDateToIso($('filter-after').value), startedBefore: localDateToIso($('filter-before').value)});
+    renderPage(page); say('Exécutions filtrées. Cochez explicitement les sources à préparer.');
+  });
+});
+$('execution-more').addEventListener('click', () => action(async () => {
+  try { renderPage(await explorer.more()); }
+  catch (error) { resetExplorer(); throw error; }
+}));
+$('selection-clear').addEventListener('click', () => {
+  explorer.clearSelection(); invalidate(); syncSelection();
+  document.querySelectorAll('#execution-rows input').forEach(checkbox => { checkbox.checked = false; });
+});
 action(async () => { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; await loadWorkflows(); });

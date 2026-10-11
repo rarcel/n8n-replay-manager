@@ -1,4 +1,5 @@
 import { ReplayError, prepareReplay, digestPlan, validateIds } from './model.mjs';
+import { executionQuery } from './explorer.mjs';
 export function readBrowserId(storage) {
   let id;
   try { id = storage.getItem('n8n-browserId'); } catch { throw new ReplayError('storage_unavailable'); }
@@ -43,6 +44,7 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
     user: () => request('/rest/login'), // GET only; no login credentials collected.
     execution: id => request(`/rest/executions/${id}`),
     workflow: id => request(`/rest/workflows/${id}`),
+    executions: filters => request('/rest/executions', undefined, executionQuery(filters)),
     workflows: ({skip = 0} = {}) => {
       if (!Number.isSafeInteger(skip) || skip < 0) throw new ReplayError('invalid_filter');
       return request('/rest/workflows', undefined, new URLSearchParams({take: '100', skip: String(skip), includeScopes: 'true'}), true);

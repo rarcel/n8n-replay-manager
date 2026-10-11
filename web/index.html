@@ -47,11 +47,25 @@
           </div>
         </section>
       </div>
+      <section class="card execution-browser" aria-labelledby="executions-title">
+        <h2 id="executions-title">Choisir les exécutions à relancer</h2>
+        <p>Filtrez les sources du workflow choisi. Les dates portent sur le démarrage, dans le fuseau horaire de votre navigateur, avec bornes incluses.</p>
+        <form id="execution-filters" class="filters">
+          <div><label for="filter-status">Statut</label><select id="filter-status"><option value="terminal">Succès et erreurs</option><option value="error">Erreurs</option><option value="success">Succès</option></select></div>
+          <div><label for="filter-after">Démarrage à partir du</label><input type="datetime-local" id="filter-after"></div>
+          <div><label for="filter-before">Démarrage jusqu’au</label><input type="datetime-local" id="filter-before"></div>
+          <button class="button secondary" id="execution-search" type="submit">Filtrer les exécutions</button>
+        </form>
+        <p id="execution-list-status" role="status" aria-live="polite">Choisissez un workflow puis appliquez les filtres.</p>
+        <div class="table-scroll"><table class="execution-table"><thead><tr><th scope="col">Choix</th><th scope="col">Exécution</th><th scope="col">Statut</th><th scope="col">Démarrage</th><th scope="col">Action</th></tr></thead><tbody id="execution-rows"></tbody></table></div>
+        <div class="result-actions"><button class="button secondary" id="execution-more" type="button" hidden>Page suivante</button><button class="button secondary" id="selection-clear" type="button">Vider la sélection</button><span id="selection-count" role="status">0/50 sélectionnées</span></div>
+        <p class="field-help">Sélection explicite, conservée entre les pages. La compatibilité des données sera vérifiée avant tout rejeu.</p>
+      </section>
       <section class="card" aria-labelledby="bulk-title">
         <h2 id="bulk-title">Préparer une sélection en lot</h2>
-        <p>Utilise le workflow renseigné ci-dessus. Sélectionnez explicitement jusqu’à 50 sources par leurs IDs, séparés par des espaces, virgules ou retours à la ligne.</p>
+        <p>Vérifiez les sources cochées dans la liste ci-dessus pour le workflow choisi.</p>
         <label for="bulk-ids">Exécutions sélectionnées</label>
-        <textarea id="bulk-ids" rows="3" maxlength="1600" spellcheck="false"></textarea>
+        <textarea id="bulk-ids" rows="3" readonly aria-label="IDs des exécutions sélectionnées"></textarea>
         <button class="button secondary" id="bulk-preview" type="button">Vérifier la sélection</button>
         <p>Préparation en lecture seule. Chaque source est vérifiée individuellement ; aucun lot n’est envoyé.</p>
         <p id="bulk-summary" role="status" aria-live="polite"></p>
