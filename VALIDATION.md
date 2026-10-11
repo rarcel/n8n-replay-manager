@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Colonne Action et boutons Vérifier cette source supprimés de la liste. Sélection par cases puis Vérifier la sélection, y compris pour une seule source. Motifs des cases indisponibles conservés dans title/aria-label ; examen individuel des tentatives bloquées conservé. 49 tests factices passent ; aucun rejeu réel.
+
 Sélecteur de workflow avec recherche intégrée temporisée, liste navigable aux flèches/Entrée/Échap, sélection explicite et réponses dépassées ignorées. Choix charge automatiquement la liste d’exécutions ; IDs masqués, vérification individuelle uniquement depuis une ligne, panneau individuel affiché à la demande après la liste. 49 tests factices passent ; structure HTML et références DOM relues. Parcours visuel non validé ici : aperçu navigateur local inaccessible (connexion refusée). Aucun rejeu réel.
 
 Recherche serveur par fragment de nom ajoutée au catalogue (filter.query, noms et descriptions, pagination take/skip conservée). Contrat DTO/repository n8n 2.42.4 examiné. 47 tests factices passent, notamment encodage du filtre, champ vide et pagination filtrée. Parcours navigateur non validé : les navigateurs de contrôle ont expiré à l’ouverture de l’aperçu localhost ; aucun appel à l’instance réelle.

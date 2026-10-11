@@ -22,6 +22,8 @@ Préparer la sélection bulk des exécutions d'un même workflow : pagination se
 
 ## État local
 
+Colonne Action et boutons Vérifier cette source supprimés de la liste. Sélection par cases puis Vérifier la sélection, y compris pour une seule source. Motifs des cases indisponibles conservés dans title/aria-label ; examen individuel des tentatives bloquées conservé. 49 tests factices passent ; aucun rejeu réel.
+
 Parcours simplifié : workflow-picker.mjs fournit combobox avec recherche serveur intégrée (250 ms), navigation clavier, pagination et protection contre réponses dépassées. Choix explicite charge les exécutions ; IDs de source/workflow internes masqués, aucune saisie d’ID en étape 01. Vérification individuelle depuis les lignes, panneau à la demande après la liste. 49 tests factices passent, navigateur local inaccessible pour contrôle visuel.
 
 Recherche de workflows par partie du nom : champ dédié, Entrée/bouton Rechercher, filtre query côté serveur (noms et descriptions) et pagination sur le même filtre. Nouvelle recherche invalide bulk/approbations. 47 tests factices passent ; test navigateur local bloqué par timeout de connexion.

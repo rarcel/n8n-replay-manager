@@ -214,7 +214,8 @@ function renderPage(page) {
     checkbox.type = 'checkbox'; checkbox.checked = explorer.selection().includes(row.id);
     checkbox.dataset.blocked = String(!row.selectable); checkbox.disabled = !row.selectable;
     checkbox.setAttribute('aria-label', `Sélectionner l’exécution ${row.id}`);
-    checkbox.title = row.reason; choice.append(checkbox); tr.append(choice);
+    checkbox.title = row.reason;
+    if (row.reason) checkbox.setAttribute('aria-label', `Exécution ${row.id} : ${row.reason}`); choice.append(checkbox); tr.append(choice);
     checkbox.addEventListener('change', () => {
       try { explorer.select(row.id, checkbox.checked); invalidate(); syncSelection(); }
       catch (error) { checkbox.checked = explorer.selection().includes(row.id); say(messages[error.code] ?? 'Sélection impossible.', true); }
@@ -222,13 +223,7 @@ function renderPage(page) {
     for (const text of [row.id, row.status === 'success' ? 'Succès' : 'Erreur', row.startedAt ? new Date(row.startedAt).toLocaleString('fr-FR') : 'Sans date de démarrage']) {
       const td = document.createElement('td'); td.textContent = text; tr.append(td);
     }
-    const cell = document.createElement('td');
-    if (row.selectable) {
-      const button = document.createElement('button'); button.className = 'button secondary'; button.type = 'button'; button.textContent = 'Vérifier cette source';
-      button.addEventListener('click', () => { $('execution-id').value = row.id; invalidate(); $('source-form').requestSubmit(); });
-      cell.append(button);
-    } else cell.textContent = row.reason;
-    tr.append(cell); $('execution-rows').append(tr);
+    $('execution-rows').append(tr);
   }
   $('execution-more').hidden = page.nextCursor === null;
   const total = page.count === -1 ? 'total indisponible' : `${page.estimated ? 'environ ' : ''}${page.count} au total`;
