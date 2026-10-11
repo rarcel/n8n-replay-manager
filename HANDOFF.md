@@ -16,13 +16,13 @@ Lire AGENTS.md, README.md et VALIDATION.md avant modification. Le POC utilise le
 
 ## Prochaine évolution
 
-Mise à jour : sélection, pagination, confirmation globale, envoi séquentiel, progression, arrêt entre POST et résultats individuels sont implémentés. Le modèle Traefik statique est préparé dans compose.traefik.yaml et deploy/TRAEFIK.md, sans déploiement. Restent l'adaptation aux valeurs d'infrastructure et la validation Docker/Traefik/contrats réels sur instance autorisée. Les autres types de déclencheurs restent à étudier séparément. Ne pas envoyer de lot réel sans demande applicable.
+Mise à jour : sélection, pagination, confirmation globale, envoi séquentiel, progression, arrêt entre POST et résultats individuels sont implémentés. Le modèle Traefik statique est préparé dans compose.traefik.yaml et deploy/TRAEFIK.md, sans déploiement. Restent la comparaison de priorité/middlewares/TLSOptions avec le POC et la validation Docker/Traefik/contrats réels sur instance autorisée. Les autres types de déclencheurs restent à étudier séparément. Ne pas envoyer de lot réel sans demande applicable.
 
 Préparer la sélection bulk des exécutions d'un même workflow : pagination selon le contrat réel de l'API, sélection explicite, vérification individuelle et récapitulatif avant confirmation globale. Rejeux séquentiels, progression et résultat individuel, arrêt entre deux envois, protection contre doublons. Définir la politique en cas d'erreur. Ne pas lancer un lot réel sans demande applicable. Le bulk n'est pas implémenté à la migration.
 
 ## État local
 
-Traefik : Dockerfile statique séparé, nginx sans proxy n8n, Compose indépendant avec réseau externe et labels limités au chemin du manager ; overlay ACME optionnel. Placeholders d'infrastructure uniquement. Ne pas combiner avec le Compose sandbox. Pas de Docker disponible ici, aucune validation de déploiement revendiquée.
+Traefik : Dockerfile statique séparé, nginx sans proxy n8n, Compose indépendant avec réseau externe et labels limités au chemin du manager ; overlay ACME optionnel. Valeurs fournies : n8n.rarcel.net, réseau rproxy, entrypoint websecure ; conserver TLS Vault existant sans overlay ACME. Priorité 1000 à vérifier contre le router du POC. Ne pas combiner avec le Compose sandbox. Pas de Docker disponible ici, aucune validation de déploiement revendiquée.
 
 Lot exécutable après compatibilité intégrale et confirmation globale : réutilisation du manager individuel pour chaque revalidation/lock/marqueur/POST, aucune approbation brute persistée, arrêt au premier refus ou ambiguïté. 41 tests factices passent ; Chrome a reçu exactement deux POST simulés puis reload a bloqué un doublon. Pas de rejeu réel. Les anciennes notes de préparation ci-dessous sont historiques.
 

@@ -4,7 +4,7 @@ Cette version remplace le POC de passerelle de service. Le rejeu se fait exclusi
 
 L'interface reprend les surfaces neutres, la police Inter, les boutons orange/corail et les dimensions compactes de n8n 2.42.4. Elle lit la préférence `N8N_THEME` (`light`, `dark`, `system`) du même navigateur sans la modifier, et suit les changements de thème de l'éditeur. C'est une interface distincte : elle ne charge pas les bundles privés n8n et les personnalisations de thème propres à votre installation ne sont pas automatiquement reprises.
 
-**Cible de déploiement retenue : Traefik.** Un modèle indépendant de serveur statique et de labels est préparé dans `compose.traefik.yaml` et [deploy/TRAEFIK.md](deploy/TRAEFIK.md). Il reste à adapter à vos routers, entrypoints, certificats et réseau existants. Aucun déploiement n'est effectué. Le Dockerfile et Compose à la racine restent une sandbox nginx distincte.
+**Cible de déploiement retenue : Traefik.** Un modèle indépendant de serveur statique et de labels est préparé dans `compose.traefik.yaml` et [deploy/TRAEFIK.md](deploy/TRAEFIK.md). Les valeurs `n8n.rarcel.net`, réseau `rproxy` et entrypoint `websecure` sont renseignées. La configuration TLS existante alimentée par Vault est conservée, sans resolver ACME. La priorité et les éventuels middlewares/TLSOptions restent à comparer au POC. Aucun déploiement n'est effectué. Le Dockerfile et Compose à la racine restent une sandbox nginx distincte.
 
 Le Dockerfile construit uniquement un serveur nginx non root pour l'interface et le reverse proxy. Compose utilise directement `docker.n8n.io/n8nio/n8n:2.42.4`, sans dérivation. Les routes éditeur utilisées sont internes ; leur schéma et leur comportement doivent être validés sur l'instance cible. Le POC ne transforme pas ces routes en API officiellement supportée.
 
@@ -56,7 +56,7 @@ Le chemin le plus direct consiste à servir les fichiers `web/` depuis votre rev
 
 La configuration complète `deploy/nginx.conf` illustre une autre option : un conteneur dédié sert les fichiers sous `/replay-manager/` et relaie les autres chemins à `n8n:5678`. Pour l'intégrer derrière votre reverse proxy, conserver une seule origine extérieure et adapter la confiance et les headers du proxy à la chaîne réelle. Ne pas exposer ce conteneur via un autre domaine ou port pour le parcours utilisateur. Les variables n8n `N8N_EDITOR_BASE_URL`, `WEBHOOK_URL`, `N8N_PROXY_HOPS` et la configuration HTTPS doivent refléter votre installation ; le Compose fourni n'est qu'une sandbox HTTP locale.
 
-Aucune adresse, credential ou session de votre installation n'est incluse. Les noms d'hôte du déploiement, la résolution du service n8n et les certificats HTTPS restent à configurer sur votre infrastructure. Le code de l'interface partage le périmètre de confiance de l'éditeur : maintenir ses dépendances, éviter les scripts externes et conserver sa CSP. La CSP fournie s'applique uniquement aux fichiers du manager et ne remplace pas celle des pages n8n.
+Le modèle Traefik inclut les valeurs d'infrastructure fournies, sans credential ni session. Les certificats HTTPS restent gérés par votre configuration Traefik existante. Le code de l'interface partage le périmètre de confiance de l'éditeur : maintenir ses dépendances, éviter les scripts externes et conserver sa CSP. La CSP fournie s'applique uniquement aux fichiers du manager et ne remplace pas celle des pages n8n.
 
 ## Alternative — sandbox Docker neuve
 
