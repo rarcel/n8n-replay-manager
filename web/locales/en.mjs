@@ -1,4 +1,5 @@
 export const english = Object.freeze({
+  'Voir l’exécution {0} dans n8n (nouvel onglet)': 'View execution {0} in n8n (new tab)',
   'Une opération est déjà en cours.': 'An operation is already in progress.',
   'Retry indisponible : la source doit être en erreur avec un état de reprise enregistré compatible, sans attente ni passages multiples.': 'Retry unavailable: the source must have failed with compatible saved retry state, without waiting or multiple runs.',
   'Un node à reprendre a disparu, changé de type ou est désactivé dans le workflow actuel.': 'A node to resume was removed, changed type or is disabled in the current workflow.',

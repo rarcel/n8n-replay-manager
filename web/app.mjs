@@ -236,7 +236,13 @@ function renderPage(page) {
       try { explorer.select(row.id, checkbox.checked); invalidate(); syncSelection(); }
       catch (error) { checkbox.checked = explorer.selection().includes(row.id); say(messages[error.code] ?? t("Sélection impossible."), true); }
     });
-    for (const text of [row.id, row.status === 'success' ? t("Succès") : t("Erreur"), row.startedAt ? new Date(row.startedAt).toLocaleString(dateLocale) : t("Sans date de démarrage")]) {
+    const executionCell = document.createElement('td'), executionLink = document.createElement('a');
+    executionLink.textContent = row.id;
+    executionLink.href = `/workflow/${encodeURIComponent(ids().workflowId)}/executions/${encodeURIComponent(row.id)}`;
+    executionLink.target = '_blank'; executionLink.rel = 'noopener';
+    executionLink.setAttribute('aria-label', t`Voir l’exécution ${row.id} dans n8n (nouvel onglet)`);
+    executionCell.append(executionLink); tr.append(executionCell);
+    for (const text of [row.status === 'success' ? t("Succès") : t("Erreur"), row.startedAt ? new Date(row.startedAt).toLocaleString(dateLocale) : t("Sans date de démarrage")]) {
       const td = document.createElement('td'); td.textContent = text; tr.append(td);
     }
     $('execution-rows').append(tr);

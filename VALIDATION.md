@@ -2,6 +2,8 @@
 
 ## Current result
 
+Execution numbers in step 2 link to their n8n details on the same origin in a new tab. The synthetic UI test verifies the link destination, ID label, translated accessible name and opener protection.
+
 64 synthetic tests passed via node scripts/validate.mjs. French language variants and the English fallback, static labels/accessibility attributes, untouched interpolated values and an English execution-selection/reset journey are covered. No real n8n request or replay was performed. Container deployment and visual browser checks remain outstanding.
 
 ## Automated checks

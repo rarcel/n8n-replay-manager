@@ -48,6 +48,11 @@ test('page reset clears the entire journey and confirmations while preserving lo
   $('execution-filters').events.submit({preventDefault() {}}); await settle();
   assert.equal($('execution-list-status').textContent, '1 execution on this page · 1 total.');
   const checkbox = $('execution-rows').children[0].children[0].children[0];
+  const executionLink = $('execution-rows').children[0].children[1].children[0];
+  assert.equal(executionLink.textContent, '101');
+  assert.equal(executionLink.href, '/workflow/wf/executions/101');
+  assert.equal(executionLink.target, '_blank'); assert.equal(executionLink.rel, 'noopener');
+  assert.equal(executionLink.attributes['aria-label'], 'View execution 101 in n8n (new tab)');
   assert.equal(checkbox.attributes['aria-label'], 'Select execution 101');
   checkbox.checked = true; checkbox.events.change();
   assert.equal($('bulk-panel').hidden, false); assert.equal(steps[2].attributes['aria-current'], 'step');
