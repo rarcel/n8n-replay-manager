@@ -5,7 +5,7 @@ import { createManager } from './client.mjs';
 export function parseSelection(workflowId, text, config, operation = 'replay') {
   operationFor({operation});
   const executionIds = text.trim().split(/[\s,;]+/).filter(Boolean);
-  if (!executionIds.length || executionIds.length > 50) throw new ReplayError('bulk_selection_invalid');
+  if (!executionIds.length) throw new ReplayError('bulk_selection_invalid');
   for (const executionId of executionIds) validateIds(workflowId, executionId, config);
   if (new Set(executionIds).size !== executionIds.length) throw new ReplayError('bulk_duplicate');
   return executionIds.map(executionId => ({workflowId, executionId, ...(operation === 'retry' ? {operation} : {})}));
@@ -67,11 +67,15 @@ export function createBulkManager(options) {
         return {rows: batch.rows, runnable};
       } finally { active = false; }
     },
-    async submit(selection, confirmed, onProgress = () => {}) {
+    async submit(selection, confirmed, onProgress = () => {}, largeBatchConfirmed = false) {
       if (active) throw new ReplayError('another_operation_busy');
       const batch = approval; approval = null;
       if (!confirmed || !batch || now() - batch.time > 5 * 60000 || JSON.stringify(selection) !== JSON.stringify(batch.selection)) {
         batch?.entries.forEach(entry => entry.manager.clearApproval()); throw new ReplayError('preview_required');
+      }
+      if (batch.selection.length > 50 && largeBatchConfirmed !== true) {
+        batch.entries.forEach(entry => entry.manager.clearApproval());
+        throw new ReplayError('large_batch_confirmation_required');
       }
       active = true; stopRequested = false;
       const rows = batch.rows.map(row => ({...row, status: 'not_sent'}));

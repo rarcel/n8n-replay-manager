@@ -3,6 +3,25 @@ import assert from 'node:assert/strict';
 import { createBulkManager, parseSelection } from '../web/bulk.mjs';
 import { config } from '../web/config.mjs';
 const workflowId = 'fixture-workflow';
+
+test('batches above 50 require a separate explicit acknowledgement before any POST', async () => {
+  const h = harness();
+  h.api.execution = async id => {
+    const source = structuredClone(h.sources['1']); source.id = id;
+    source.data.resultData.runData.Webhook[0].data.main[0][0].json.id = id;
+    return source;
+  };
+  const selection = parseSelection(workflowId, Array.from({length: 51}, (_, i) => i + 1).join(' '), config);
+  assert.equal(selection.length, 51);
+  assert.equal(parseSelection(workflowId, selection.map(ids => ids.executionId).join(' '), config, 'retry').length, 51);
+  assert.equal((await h.bulk.preview(selection)).runnable, true);
+  await assert.rejects(h.bulk.submit(selection, true), {code: 'large_batch_confirmation_required'});
+  assert.equal(h.posts.length, 0); assert.equal(h.map.size, 0);
+  await h.bulk.preview(selection);
+  const result = await h.bulk.submit(selection, true, () => {}, true);
+  assert.equal(result.reason, 'complete'); assert.equal(h.posts.length, 51);
+  assert.equal(h.map.size, 51); assert.ok(result.rows.every(row => row.status === 'submitted'));
+});
 function harness() {
   const map = new Map(), posts = []; let time = 0, userId = 'user';
   const storage = {getItem: k => map.get(k) ?? null, setItem: (k,v) => map.set(k,v), removeItem: k => map.delete(k)};

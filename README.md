@@ -7,7 +7,7 @@ The interface uses French when the browser’s primary language is French (inclu
 ## Features
 
 - Searchable workflow selector with keyboard navigation and automatic execution loading.
-- Status and inclusive start-date filters, paginated execution list and explicit selection of up to 50 sources.
+- Status and inclusive start-date filters, paginated execution list and explicit selection across pages, with additional acknowledgement above 50 sources.
 - Replay from saved JSON trigger outputs into the **current workflow**, or native retry from saved failure state using the **current workflow**.
 - Read-only preview, destination/version review, explicit confirmation and revalidation before every submission.
 - Sequential batches, stop between submissions, links to results and on-demand result checks.
@@ -55,9 +55,9 @@ Copy web/ into your HTTPS reverse proxy’s static directory and route only /rep
 2. Type part of a workflow name and choose a result. Its executions load automatically. Arrow keys and Enter select a result; Escape closes the list.
 3. Choose **Replay from trigger** or **Native retry**, adjust status/start-date filters and select sources. Retry restricts the list to errors. Dates use the browser time zone and inclusive bounds. Selection is retained across pages; changing workflow, filters or mode clears it.
    Click an execution number to open its details in n8n in a new tab without changing the selection.
-   **Select all** reads every filtered page and selects eligible summaries, up to 50 executions. If more than 50 are eligible, it refuses a partial selection and retains the previous choices: narrow the filters. **Select this page only** replaces all choices with eligible rows on the displayed page. Neither action submits anything; full source compatibility is checked later.
+   **Select all** reads filtered pages and selects eligible summaries, including selections above 50 executions. Its scan is bounded to 100 pages per action; if exceeded, narrow the filters (previous choices are retained). **Select this page only** replaces all choices with eligible rows on the displayed page. Neither action submits anything; full source compatibility is checked later.
 4. Click **Check selection**. Review all sources, the current destination workflow/version and the possible effects. One incompatible or locally reserved source blocks the whole batch; remove it and check again.
-5. Confirm the effects, then start the batch. Submissions are sequential. Stop takes effect after the current submission and cannot cancel a POST already sent.
+5. Confirm the effects, then start the batch. For more than 50 executions, review the displayed total and also acknowledge the additional volume warning; submission is blocked without this separate acknowledgement. Changing the selection or preparing a new preview clears the acknowledgement. Submissions are sequential. Stop takes effect after the current submission and cannot cancel a POST already sent.
 6. Check each result in n8n and verify business effects. A new execution ID means **submitted**, not necessarily successful.
 
 **Reset page** clears workflow, selection, filters, previews, confirmations and displayed results. It is disabled during an operation and retains existing attempt markers, browser identity and theme preference. To intentionally retry a previously submitted source, inspect its attempt and explicitly acknowledge the duplicate risk before releasing its local block.
@@ -85,7 +85,7 @@ Retry resumes the saved stack using the current definition and credentials; save
 - Every request uses the existing browser session and n8n-browserId. No cookie reading/export, generated browser identifier, automated login, service account, API key or external script.
 - n8n enforces authentication and permissions on each request. The manager additionally checks read/execute scopes; client checks are not an authorization boundary. Redaction is never disabled.
 - The manager never imports, updates, activates or deactivates workflows. Their nodes can still execute business writes, emails, payments and other effects.
-- Preview approvals last five minutes. Identity, source and current workflow version/nodes/connections/settings are reread and compared before POST. There is no atomic server-side version precondition.
+- Preview approvals last five minutes. A long verification or batch may reach that expiry and require another preview for the remaining sources. Identity, source and current workflow version/nodes/connections/settings are reread and compared before POST. There is no atomic server-side version precondition.
 - Web Locks and local storage are required. A local marker is written **before** each POST. No automatic resubmission; unknown outcomes remain blocked until explicit acknowledgement.
 - Markers are local to a browser profile/origin, not server idempotency or protection across devices. Replay and retry share the same markers.
 - Payloads are held transiently in browser memory, never persisted in local history. Received values use textContent, never HTML insertion. Browser network tools can still expose data received by the authorized session.

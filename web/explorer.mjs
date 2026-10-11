@@ -104,7 +104,6 @@ export function createExplorer({api, config}) {
           if (seen.has(row.id)) throw new ReplayError('invalid_response');
           seen.add(row.id);
           if (row.selectable) matches.set(row.id, row);
-          if (matches.size > 50) throw new ReplayError('selection_limit');
         }
         nextCursor = result.nextCursor;
         if (nextCursor === null) break;
@@ -116,7 +115,7 @@ export function createExplorer({api, config}) {
       for (const row of matches.values()) { known.set(row.id, row); selected.set(row.id, true); }
       return matches.size;
     } catch (error) {
-      if (!['selection_limit', 'selection_scan_limit'].includes(error.code)) clear();
+      if (error.code !== 'selection_scan_limit') clear();
       throw error;
     } finally { loading = false; }
   }
@@ -130,7 +129,6 @@ export function createExplorer({api, config}) {
     select(id, checked) {
       if (loading) throw new ReplayError('another_operation_busy');
       if (!known.get(id)?.selectable) throw new ReplayError('bulk_selection_invalid');
-      if (checked && !selected.has(id) && selected.size >= 50) throw new ReplayError('bulk_selection_invalid');
       if (checked) selected.set(id, true); else selected.delete(id);
     },
     clearSelection() { selected.clear(); },

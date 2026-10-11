@@ -56,7 +56,7 @@ test('page reset clears the entire journey and confirmations while preserving lo
   assert.equal(checkbox.attributes['aria-label'], 'Select execution 101');
   checkbox.checked = true; checkbox.events.change();
   assert.equal($('bulk-panel').hidden, false); assert.equal(steps[2].attributes['aria-current'], 'step');
-  assert.equal($('selection-count').textContent, '1/50 selected');
+  assert.equal($('selection-count').textContent, '1 selected');
   $('operation-mode').value = 'retry'; $('filter-after').value = '2026-10-11T10:00';
   $('confirm-effects').checked = true; $('bulk-confirm').checked = true;
   $('page-reset').events.click(); await settle();

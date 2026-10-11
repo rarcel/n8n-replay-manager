@@ -20,11 +20,11 @@ test('select all scans exact filters across pages without moving the display; pa
   explorer.selectPage(); assert.deepEqual(explorer.selection(), ['3']);
 });
 
-test('select all refuses a truncated selection above 50 and preserves previous choices', async () => {
+test('select all includes more than 50 executions across pages', async () => {
   const explorer = createExplorer({config, api: {user: async () => ({id: 'u'}), executions: async filters => filters.cursor ? page([row(51)]) : page(Array.from({length: 50}, (_, i) => row(i + 1)), 'next')}});
   await explorer.search({workflowId}); explorer.select('1', true);
-  await assert.rejects(explorer.selectAll(), {code: 'selection_limit'});
-  assert.deepEqual(explorer.selection(), ['1']); assert.equal(explorer.page.rows.length, 50);
+  assert.equal(await explorer.selectAll(), 51);
+  assert.equal(explorer.selection().length, 51); assert.equal(explorer.page.rows.length, 50);
   explorer.selectPage(); assert.equal(explorer.selection().length, 50);
 });
 
@@ -67,14 +67,15 @@ test('pagination preserves explicit selection and exact filters, reset clears al
   h.explorer.reset(); assert.deepEqual(h.explorer.selection(), []);
   await assert.rejects(h.explorer.more());
 });
-test('selection is explicit, maximum 50, ineligible summaries remain unavailable', async () => {
+test('selection can exceed 50 while ineligible summaries remain unavailable', async () => {
   const h = harness(); h.setPage(page(Array.from({length: 50}, (_, i) => row(i + 1)), 'next'));
   await h.explorer.search({workflowId}); assert.deepEqual(h.explorer.selection(), []);
   for (let i = 1; i <= 50; i++) h.explorer.select(String(i), true);
   h.setPage(page([row(51), {...row(52), stoppedAt: null}, {...row(53), scopes: []}, {...row(54), id: 'uuid-not-supported'}]));
   const result = await h.explorer.more();
   assert.deepEqual(result.rows.map(r => r.selectable), [true, false, false, false]);
-  for (const id of ['51', '52', '53', 'uuid-not-supported', 'unknown']) assert.throws(() => h.explorer.select(id, true));
+  h.explorer.select('51', true); assert.equal(h.explorer.selection().length, 51);
+  for (const id of ['52', '53', 'uuid-not-supported', 'unknown']) assert.throws(() => h.explorer.select(id, true));
   h.explorer.select('1', false); h.explorer.select('51', true); assert.equal(h.explorer.selection().length, 50);
 });
 test('changed account, repeated cursors or rows and inconsistent responses discard selection', async () => {

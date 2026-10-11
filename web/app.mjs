@@ -9,14 +9,14 @@ import { createExplorer, localDateToIso } from './explorer.mjs';
 localizePage(document);
 const $ = id => document.getElementById(id);
 const messages = {
-  selection_limit: t('Plus de 50 exécutions sélectionnables correspondent aux filtres. Affinez les filtres ; la sélection précédente est conservée.'),
+  large_batch_confirmation_required: t('Validez l’avertissement pour lancer plus de 50 exécutions.'),
   selection_scan_limit: t('La recherche dépasse 100 pages. Affinez les filtres ; la sélection précédente est conservée.'),
   another_operation_busy: t("Une opération est déjà en cours."),
   retry_unavailable: t("Retry indisponible : la source doit être en erreur avec un état de reprise enregistré compatible, sans attente ni passages multiples."),
   retry_node_changed: t("Un node à reprendre a disparu, changé de type ou est désactivé dans le workflow actuel."),
   invalid_operation: t("Choisissez Rejeu ou Retry."),
   invalid_filter: t("Les filtres ou la pagination sont invalides."),
-  bulk_selection_invalid: t("Sélectionnez de 1 à 50 IDs valides pour un même workflow."),
+  bulk_selection_invalid: t("Sélectionnez des IDs valides pour un même workflow."),
   bulk_duplicate: t("La sélection contient un ID répété. Retirez le doublon."),
   open_editor_first: t("Ouvrez n8n et connectez-vous sur ce même domaine, puis revenez ici."),
   session_expired: t("Votre session a expiré ou nécessite une vérification. Reconnectez-vous dans n8n."),
@@ -74,7 +74,7 @@ function sync() {
   stage(view.step);
   $('page-reset').disabled = busy;
   picker.setBusy(busy);
-  for (const id of ['operation-mode', 'workflow-id', 'execution-id', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm']) $(id).disabled = busy;
+  for (const id of ['operation-mode', 'workflow-id', 'execution-id', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm', 'large-batch-confirm']) $(id).disabled = busy;
   document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
   $('bulk-preview').disabled = busy || !explorer.selection().length;
   $('execution-search').disabled = busy || !$('workflow-id').value;
@@ -82,7 +82,7 @@ function sync() {
   $('selection-clear').disabled = busy || !explorer.selection().length;
   $('selection-all').disabled = busy || !explorer.page;
   $('selection-page').disabled = busy || !explorer.page?.rows.some(row => row.selectable);
-  $('bulk-run').disabled = busy || !bulkReady || !$('bulk-confirm').checked;
+  $('bulk-run').disabled = busy || !bulkReady || !$('bulk-confirm').checked || (explorer.selection().length > 50 && !$('large-batch-confirm').checked);
   $('bulk-stop').hidden = !bulkRunning;
   document.querySelectorAll('#bulk-results button').forEach(button => { button.disabled = busy; });
   $('replay-button').disabled = busy || !ready || !!record || !$('confirm-effects').checked;
@@ -155,7 +155,8 @@ $('release-button').addEventListener('click', () => action(async () => {
 sync();
 
 function clearBulk() {
-  bulk.clearApproval(); bulkReady = false; $('bulk-confirm').checked = false;
+  bulk.clearApproval(); bulkReady = false; $('bulk-confirm').checked = false; $('large-batch-confirm').checked = false;
+  $('large-batch-warning').hidden = true; $('large-batch-description').textContent = '';
   $('bulk-confirmation').hidden = true; $('bulk-target').textContent = '';
   $('bulk-results').replaceChildren(); $('bulk-summary').textContent = '';
 }
@@ -169,6 +170,8 @@ $('bulk-preview').addEventListener('click', () => action(async () => {
     const result = await bulk.preview(selection, render); bulkReady = result.runnable;
     $('bulk-confirmation').hidden = !bulkReady;
     if (bulkReady) {
+      $('large-batch-warning').hidden = result.rows.length <= 50;
+      $('large-batch-description').textContent = t`Vous allez relancer ${result.rows.length} exécutions. Les effets métier peuvent être répétés et le traitement peut durer longtemps. Validez cet avertissement en plus de la confirmation des effets.`;
       const first = result.rows[0];
       $('bulk-target').textContent = t`${operation() === 'retry' ? t("Retry natif") : t("Rejeu")} · ${result.rows.length} sources · ${result.rows.reduce((sum, row) => sum + row.itemCount, 0)} éléments · destination : workflow actuel ${first.workflowName} (${ids().workflowId}) · version ${first.versionId}.`;
     }
@@ -202,23 +205,26 @@ function renderBulkRows(rows) {
   sync();
 }
 $('bulk-confirm').addEventListener('change', sync);
+$('large-batch-confirm').addEventListener('change', sync);
 $('bulk-stop').addEventListener('click', () => { bulk.stop(); $('bulk-stop').disabled = true; say(t("Arrêt demandé. Aucun nouvel envoi après la tentative en cours.")); });
 $('bulk-run').addEventListener('click', () => action(async () => {
   const selection = parseSelection(ids().workflowId, explorer.selection().join(' '), config, operation());
   const confirmed = $('bulk-confirm').checked;
+  const largeBatchConfirmed = $('large-batch-confirm').checked;
+  $('large-batch-confirm').checked = false;
   bulkReady = false; bulkRunning = true; $('bulk-confirm').checked = false; $('bulk-confirmation').hidden = true; $('bulk-stop').disabled = false; sync();
   try {
     const result = await bulk.submit(selection, confirmed, rows => {
       renderBulkRows(rows);
       $('bulk-summary').textContent = t`${rows.filter(row => row.status === 'submitted').length}/${rows.length} soumises · ${rows.filter(row => row.status === 'not_sent').length} non envoyées.`;
-    });
+    }, largeBatchConfirmed);
     renderBulkRows(result.rows);
     say(result.reason === 'complete' ? t("Lot soumis. Vérifiez chaque résultat et les effets métier.") : result.reason === 'stopped' ? t("Lot arrêté entre deux envois. Les sources restantes n’ont pas été envoyées.") : result.reason === 'retry_not_successful' ? t("Lot arrêté : le dernier retry n’a pas terminé avec succès. Vérifiez son résultat ; les sources suivantes n’ont pas été envoyées.") : t("Lot interrompu au premier refus ou résultat ambigu. Examinez la tentative avant toute nouvelle action."), ['error', 'retry_not_successful'].includes(result.reason));
   } finally { bulkRunning = false; sync(); }
 }));
 function syncSelection() {
   $('bulk-ids').value = explorer.selection().join('\n');
-  $('selection-count').textContent = t`${explorer.selection().length}/50 sélectionnées`;
+  $('selection-count').textContent = t`${explorer.selection().length} sélectionnées`;
   clearBulk(); sync();
 }
 function resetExplorer() {

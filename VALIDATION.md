@@ -2,11 +2,13 @@
 
 ## Current result
 
-Step 2 has Select all (filtered pages, atomic selection up to 50 eligible summaries) and Select this page only (replaces choices). Tests cover unchanged display/pagination, unavailable rows, limit refusal without truncation and clearing on session/protocol/network failures. No submission occurs during selection.
+Selections and batches may exceed 50 executions. An additional explicit volume acknowledgement is required before any submission above that threshold, alongside effect confirmation. A synthetic 51-source batch is blocked with zero POSTs/markers without acknowledgement and completes sequentially with 51 markers after acknowledgement. Confirmation is cleared on new preview/selection; unchanged stop, expiry, revalidation and duplicate protections remain.
+
+Step 2 has Select all (filtered pages, atomic selection across filtered pages) and Select this page only (replaces choices). Tests cover unchanged display/pagination, unavailable rows, selection above 50 without truncation and clearing on session/protocol/network failures. No submission occurs during selection.
 
 Execution numbers in step 2 link to their n8n details on the same origin in a new tab. The synthetic UI test verifies the link destination, ID label, translated accessible name and opener protection.
 
-67 synthetic tests passed via node scripts/validate.mjs. French language variants and the English fallback, static labels/accessibility attributes, untouched interpolated values and an English execution-selection/reset journey are covered. No real n8n request or replay was performed. Container deployment and visual browser checks remain outstanding.
+68 synthetic tests passed via node scripts/validate.mjs. French language variants and the English fallback, static labels/accessibility attributes, untouched interpolated values and an English execution-selection/reset journey are covered. No real n8n request or replay was performed. Container deployment and visual browser checks remain outstanding.
 
 ## Automated checks
 
