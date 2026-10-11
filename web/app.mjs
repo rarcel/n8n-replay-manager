@@ -1,8 +1,11 @@
 import { config } from './config.mjs';
 import './theme.mjs';
 import { createApi, createManager } from './client.mjs';
+import { parseSelection, prepareSelection } from './bulk.mjs';
 const $ = id => document.getElementById(id);
 const messages = {
+  bulk_selection_invalid: 'Sélectionnez de 1 à 50 IDs valides pour un même workflow.',
+  bulk_duplicate: 'La sélection contient un ID répété. Retirez le doublon.',
   open_editor_first: 'Ouvrez n8n et connectez-vous sur ce même domaine, puis revenez ici.',
   session_expired: 'Votre session a expiré ou nécessite une vérification. Reconnectez-vous dans n8n.',
   session_changed: 'Le compte connecté a changé. Vérifiez à nouveau la source.',
@@ -39,12 +42,13 @@ const messages = {
   result_mismatch: 'Le résultat ne correspond pas au workflow ou au mode manuel attendu.',
 };
 let busy = false, ready = false, record = null;
-const manager = createManager({api: createApi({storage: localStorage}), storage: localStorage, locks: navigator.locks, config});
+const api = createApi({storage: localStorage});
+const manager = createManager({api, storage: localStorage, locks: navigator.locks, config});
 const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('execution-id').value.trim()});
 $('workflow-id').value = config.defaultWorkflowId; $('execution-id').value = config.defaultExecutionId;
 function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
-  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release']) $(id).disabled = busy;
+  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview']) $(id).disabled = busy;
   $('replay-button').disabled = busy || !ready || !!record || !$('confirm-effects').checked;
   $('release-button').disabled = busy || !$('confirm-release').checked;
 }
@@ -105,4 +109,25 @@ $('release-button').addEventListener('click', () => action(async () => {
   await manager.release(ids(), $('confirm-release').checked); invalidate(); say('Blocage local levé explicitement. Vérifiez à nouveau la source avant de rejouer.');
 }));
 stage(1); sync();
+
+function clearBulk() { $('bulk-results').replaceChildren(); $('bulk-summary').textContent = ''; }
+$('workflow-id').addEventListener('input', clearBulk);
+$('bulk-ids').addEventListener('input', clearBulk);
+$('bulk-preview').addEventListener('click', () => action(async () => {
+  invalidate(); clearBulk();
+  const selection = parseSelection(ids().workflowId, $('bulk-ids').value, config);
+  const render = rows => {
+    $('bulk-results').replaceChildren();
+    for (const row of rows) {
+      const li = document.createElement('li');
+      li.textContent = `${row.executionId} · ${row.code === 'compatible' ? `${row.itemCount} élément(s) · destination actuelle : ${row.workflowName} · version ${row.versionId}` : messages[row.code] ?? 'Source incompatible.'}`;
+      $('bulk-results').append(li);
+    }
+    $('bulk-summary').textContent = `${rows.length}/${selection.length} vérifiées · ${rows.filter(row => row.code === 'compatible').length} compatibles. Aucun envoi.`;
+  };
+  try {
+    await prepareSelection({selection, api, storage: localStorage, locks: navigator.locks, config, onProgress: render});
+    say('Sélection vérifiée. Les sources bloquées restent exclues ; une nouvelle validation sera nécessaire avant tout envoi.');
+  } catch (error) { clearBulk(); throw error; }
+}));
 action(async () => { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; say('Session n8n disponible. Choisissez une source et vérifiez-la.'); });

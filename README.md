@@ -71,6 +71,16 @@ Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est acce
 
 ## Étape 3 — vérifier puis rejouer
 
+### Préparation d'une sélection bulk (lecture seule)
+
+Le panneau de sélection utilise le workflow saisi et accepte de 1 à 50 IDs explicitement choisis dans n8n, séparés par espaces, virgules, points-virgules ou retours à la ligne. Les doublons sont refusés. Chaque source est vérifiée séparément avec les règles du rejeu individuel. Le récapitulatif affiche ID, compatibilité, nombre d'éléments et destination actuelle ; les tentatives locales existantes sont signalées comme bloquées. Aucun payload ni sélection n'est persisté. Modifier la sélection ou le workflow efface le récapitulatif.
+
+Cette préparation ne conserve aucune approbation permettant un POST et ne propose pas encore de confirmation globale ni de lancement de lot. La liste paginée reste à implémenter après vérification du contrat détaillé au tag 2.42.4 ; aucun paramètre de pagination n'est supposé.
+
+Politique retenue pour le futur envoi séquentiel : arrêter au premier refus ou résultat d'envoi ambigu, conserver les marqueurs des tentatives et laisser les sources restantes non envoyées. Un arrêt demandé prendra effet entre deux envois sans annuler un POST en cours. Une réponse de soumission ne prouve pas le succès métier. L'envoi nécessitera une nouvelle simulation, une confirmation globale explicite de la destination et des effets, puis une relecture/comparaison de chaque plan avant son POST. Cette orchestration reste à réaliser.
+
+### Rejeu individuel
+
 1. Se connecter à l'éditeur n8n sur la même origine.
 2. Ouvrir `/replay-manager/`, saisir les IDs puis cliquer **Vérifier la source**. Cette étape est uniquement en lecture.
 3. Examiner le workflow, le Webhook et le nombre d'éléments ; confirmer les effets possibles.

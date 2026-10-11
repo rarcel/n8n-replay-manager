@@ -44,6 +44,16 @@
           </div>
         </section>
       </div>
+      <section class="card" aria-labelledby="bulk-title">
+        <h2 id="bulk-title">Préparer une sélection en lot</h2>
+        <p>Utilise le workflow renseigné ci-dessus. Sélectionnez explicitement jusqu’à 50 sources par leurs IDs, séparés par des espaces, virgules ou retours à la ligne.</p>
+        <label for="bulk-ids">Exécutions sélectionnées</label>
+        <textarea id="bulk-ids" rows="3" maxlength="1600" spellcheck="false"></textarea>
+        <button class="button secondary" id="bulk-preview" type="button">Vérifier la sélection</button>
+        <p>Préparation en lecture seule. Chaque source est vérifiée individuellement ; aucun lot n’est envoyé.</p>
+        <p id="bulk-summary" role="status" aria-live="polite"></p>
+        <ul id="bulk-results"></ul>
+      </section>
       <section class="message" id="message" role="status" aria-live="polite">Connectez-vous à n8n dans ce navigateur, puis vérifiez votre source.</section>
       <section class="card result-card" id="result-panel" hidden aria-labelledby="result-title"><div><div class="eyebrow">SUIVI</div><h2 id="result-title">Dernière tentative pour cette source</h2><p id="result-text"></p></div><div class="result-actions"><a id="result-link" class="button secondary" target="_blank" rel="noopener" hidden>Voir dans n8n ↗</a><button id="check-button" class="button secondary" type="button" hidden>Vérifier le résultat</button></div>
         <details><summary>Autoriser une nouvelle tentative</summary><p>La protection locale bloque un second envoi pour cette source. Vérifiez d’abord dans n8n si une exécution a été créée, surtout si la réponse a été perdue.</p><label class="check-label"><input id="confirm-release" type="checkbox"><span>J’ai vérifié les exécutions n8n et j’accepte le risque de répéter les effets avec une nouvelle tentative.</span></label><button id="release-button" class="button secondary" type="button" disabled>Lever le blocage local</button></details>

@@ -5,7 +5,46 @@ import { stringify } from '../web/vendor/flatted.mjs';
 import { config } from '../web/config.mjs';
 import { ReplayError, prepareReplay, normalizeExecution, digestPlan } from '../web/model.mjs';
 import { createApi, createManager, readBrowserId } from '../web/client.mjs';
+import { parseSelection, prepareSelection } from '../web/bulk.mjs';
 const ids = {workflowId: config.defaultWorkflowId, executionId: config.defaultExecutionId};
+test('bulk requires explicit unique IDs, one workflow, and bounded selection', async () => {
+  assert.equal(parseSelection(ids.workflowId, '1, 2;\n3', config).length, 3);
+  for (const value of ['', '1 1', 'abc', Array.from({length: 51}, (_, i) => i + 1).join(' ')]) {
+    assert.throws(() => parseSelection(ids.workflowId, value, config));
+  }
+  const h = harness();
+  await assert.rejects(prepareSelection({...h, storage: h.store, config, selection: [ids, {...ids, workflowId: 'other'}]}), {code: 'bulk_selection_invalid'});
+  assert.deepEqual(h.calls, []);
+});
+
+test('bulk checks sources individually and returns metadata only without POST or persistence', async () => {
+  const h = harness();
+  h.api.execution = async id => {
+    const execution = structuredClone(h.f.execution); execution.id = id;
+    if (id === '2') execution.data.redactionInfo = {isRedacted: true};
+    return execution;
+  };
+  const progress = [];
+  const rows = await prepareSelection({selection: parseSelection(ids.workflowId, '1 2 3', config), api: h.api, storage: h.store, locks: locks(), config, onProgress: rows => progress.push(rows.length)});
+  assert.deepEqual(rows.map(row => row.code), ['compatible', 'redacted_data', 'compatible']);
+  assert.deepEqual(progress, [1, 2, 3]);
+  assert.equal(h.store.map.size, 1);
+  assert.ok(!h.calls.some(call => typeof call === 'object'));
+  assert.ok(!JSON.stringify(rows).includes('order'));
+  assert.ok(!JSON.stringify(rows).includes('payload'));
+});
+
+test('bulk aborts if identity or current definition changes during preparation', async () => {
+  for (const change of ['identity', 'definition']) {
+    const h = harness();
+    h.api.execution = async id => ({...h.f.execution, id});
+    await assert.rejects(prepareSelection({selection: parseSelection(ids.workflowId, '1 2', config), api: h.api, storage: h.store, locks: locks(), config, onProgress: () => {
+      if (change === 'identity') h.setUser({id: 'other'});
+      else h.f.workflow.settings = {changed: true};
+    }}), {code: change === 'identity' ? 'session_changed' : 'preview_changed'});
+    assert.ok(!h.calls.some(call => typeof call === 'object'));
+  }
+});
 function storage() {
   const map = new Map([['n8n-browserId', '00000000-0000-4000-8000-000000000001']]);
   return {getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value), removeItem: key => map.delete(key), map};

@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+- Préparation bulk en lecture seule : 26 tests Node réussis, 0 échec via `node scripts/validate.mjs`. Nouveaux tests : IDs uniques et limite de 50, un seul workflow, résultats individuels dont données masquées, absence de POST/persistance de payloads, arrêt sur changement de compte ou de définition actuelle. Aucun lot réel envoyé. Le nouveau panneau n'a pas été validé visuellement dans un navigateur ni sur une instance n8n réelle.
+
 - Sources publiques au tag n8n@2.42.4 consultées : identifiant navigateur, headers REST, compte courant, scopes, lecture et redaction des exécutions, sérialisation flatted, DTO et moteur de rejeu.
 - Contrat ITaskData corrigé par rapport au premier POC : sorties sous triggerToStartFrom.data.data.main.
 - 23 tests Node réussis, 0 échec, Node 24.16.0 ; syntaxe JavaScript et empreinte du décodeur vérifiées. Le rejeu dans le workflow actuel est accepté avec version historique absente/différente, sans définition injectée. Version actuelle absente ou changement de version/nodes/connections/settings entre aperçu et envoi : refus sans POST. Cette révision n'a pas été testée sur l'instance utilisateur ni capturée dans le navigateur ; les captures précédentes illustrent le thème et pas le nouveau libellé de confirmation.
