@@ -55,8 +55,8 @@ function executionPage(response, filters) {
 export function createExplorer({api, config}) {
   let filters = null, userId = null, cursor = null, loading = false;
   let page = null;
-  const selected = new Map(), known = new Map(), cursors = new Set();
-  function clear() { filters = null; userId = null; cursor = null; page = null; selected.clear(); known.clear(); cursors.clear(); }
+  const selected = new Map(), known = new Map(), cursors = new Set(), visited = new Set();
+  function clear() { filters = null; userId = null; cursor = null; page = null; selected.clear(); known.clear(); cursors.clear(); visited.clear(); }
   async function load(nextFilters, more) {
     if (loading) throw new ReplayError('another_operation_busy');
     if (more && (!filters || cursor === null)) throw new ReplayError('invalid_filter');
@@ -73,7 +73,8 @@ export function createExplorer({api, config}) {
       if (result.nextCursor !== null && (result.nextCursor === cursor || cursors.has(result.nextCursor))) throw new ReplayError('invalid_response');
       if (result.nextCursor !== null) cursors.add(result.nextCursor);
       for (const row of result.rows) {
-        if (known.has(row.id)) throw new ReplayError('invalid_response');
+        if (visited.has(row.id)) throw new ReplayError('invalid_response');
+        visited.add(row.id);
         known.set(row.id, row);
       }
       filters = queryFilters; userId = user.id; cursor = result.nextCursor; page = result;
@@ -81,11 +82,51 @@ export function createExplorer({api, config}) {
     } catch (error) { clear(); throw error; }
     finally { loading = false; }
   }
+  function selectPage() {
+    if (loading) throw new ReplayError('another_operation_busy');
+    if (!page) throw new ReplayError('invalid_filter');
+    selected.clear();
+    for (const row of page.rows) if (row.selectable) selected.set(row.id, true);
+  }
+  async function selectAll() {
+    if (loading) throw new ReplayError('another_operation_busy');
+    if (!filters || !page) throw new ReplayError('invalid_filter');
+    loading = true;
+    const matches = new Map(), seen = new Set(), seenCursors = new Set();
+    let nextCursor = null;
+    try {
+      for (let pages = 0; ; pages++) {
+        if (pages >= 100) throw new ReplayError('selection_scan_limit');
+        if ((await api.user()).id !== userId) throw new ReplayError('session_changed');
+        const result = executionPage(await api.executions({...filters, cursor: nextCursor ?? undefined}), filters);
+        if ((await api.user()).id !== userId) throw new ReplayError('session_changed');
+        for (const row of result.rows) {
+          if (seen.has(row.id)) throw new ReplayError('invalid_response');
+          seen.add(row.id);
+          if (row.selectable) matches.set(row.id, row);
+          if (matches.size > 50) throw new ReplayError('selection_limit');
+        }
+        nextCursor = result.nextCursor;
+        if (nextCursor === null) break;
+        if (seenCursors.has(nextCursor)) throw new ReplayError('invalid_response');
+        seenCursors.add(nextCursor);
+      }
+      // Commit only a complete selection. Keep the displayed page and its pagination cursor.
+      selected.clear();
+      for (const row of matches.values()) { known.set(row.id, row); selected.set(row.id, true); }
+      return matches.size;
+    } catch (error) {
+      if (!['selection_limit', 'selection_scan_limit'].includes(error.code)) clear();
+      throw error;
+    } finally { loading = false; }
+  }
   return {
     reset: clear,
     search: nextFilters => load(nextFilters, false),
     more: () => load(null, true),
     selection: () => [...selected.keys()],
+    selectPage,
+    selectAll,
     select(id, checked) {
       if (loading) throw new ReplayError('another_operation_busy');
       if (!known.get(id)?.selectable) throw new ReplayError('bulk_selection_invalid');

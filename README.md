@@ -55,6 +55,7 @@ Copy web/ into your HTTPS reverse proxy’s static directory and route only /rep
 2. Type part of a workflow name and choose a result. Its executions load automatically. Arrow keys and Enter select a result; Escape closes the list.
 3. Choose **Replay from trigger** or **Native retry**, adjust status/start-date filters and select sources. Retry restricts the list to errors. Dates use the browser time zone and inclusive bounds. Selection is retained across pages; changing workflow, filters or mode clears it.
    Click an execution number to open its details in n8n in a new tab without changing the selection.
+   **Select all** reads every filtered page and selects eligible summaries, up to 50 executions. If more than 50 are eligible, it refuses a partial selection and retains the previous choices: narrow the filters. **Select this page only** replaces all choices with eligible rows on the displayed page. Neither action submits anything; full source compatibility is checked later.
 4. Click **Check selection**. Review all sources, the current destination workflow/version and the possible effects. One incompatible or locally reserved source blocks the whole batch; remove it and check again.
 5. Confirm the effects, then start the batch. Submissions are sequential. Stop takes effect after the current submission and cannot cancel a POST already sent.
 6. Check each result in n8n and verify business effects. A new execution ID means **submitted**, not necessarily successful.

@@ -6,6 +6,40 @@ import { createExplorer, executionQuery, localDateToIso } from '../web/explorer.
 const workflowId = 'fixture-workflow';
 const row = id => ({id: String(id), workflowId, status: 'error', startedAt: '2026-10-10T12:00:00.000Z', stoppedAt: '2026-10-10T12:01:00.000Z', scopes: ['workflow:read', 'workflow:execute']});
 const page = (rows, nextCursor = null) => ({results: rows, nextCursor, count: 100, estimated: false});
+
+test('select all scans exact filters across pages without moving the display; page-only replaces other-page choices', async () => {
+  const calls = [];
+  const first = page([row(1), {...row(2), scopes: []}], 'next'), second = page([row(3)]);
+  const explorer = createExplorer({config, api: {user: async () => ({id: 'u'}), executions: async filters => { calls.push(filters); return filters.cursor ? second : first; }}});
+  await explorer.search({workflowId, status: 'error'});
+  const displayed = explorer.page;
+  assert.equal(await explorer.selectAll(), 2);
+  assert.deepEqual(explorer.selection(), ['1', '3']); assert.equal(explorer.page, displayed);
+  assert.deepEqual(calls.map(call => [call.status, call.cursor]), [['error', undefined], ['error', undefined], ['error', 'next']]);
+  await explorer.more(); assert.deepEqual(explorer.selection(), ['1', '3']);
+  explorer.selectPage(); assert.deepEqual(explorer.selection(), ['3']);
+});
+
+test('select all refuses a truncated selection above 50 and preserves previous choices', async () => {
+  const explorer = createExplorer({config, api: {user: async () => ({id: 'u'}), executions: async filters => filters.cursor ? page([row(51)]) : page(Array.from({length: 50}, (_, i) => row(i + 1)), 'next')}});
+  await explorer.search({workflowId}); explorer.select('1', true);
+  await assert.rejects(explorer.selectAll(), {code: 'selection_limit'});
+  assert.deepEqual(explorer.selection(), ['1']); assert.equal(explorer.page.rows.length, 50);
+  explorer.selectPage(); assert.equal(explorer.selection().length, 50);
+});
+
+test('select all clears selection on changed session, repeated cursor, duplicate source or network failure', async () => {
+  for (const issue of ['session', 'cursor', 'duplicate', 'network']) {
+    let scans = 0;
+    const explorer = createExplorer({config, api: {user: async () => ({id: issue === 'session' && scans > 1 ? 'other' : 'u'}), executions: async filters => {
+      scans++;
+      if (filters.cursor && issue === 'network') throw new Error('network');
+      return filters.cursor ? page([row(issue === 'duplicate' ? 1 : 2)], issue === 'cursor' ? 'next' : null) : page([row(1)], 'next');
+    }}});
+    await explorer.search({workflowId}); explorer.select('1', true);
+    await assert.rejects(explorer.selectAll()); assert.deepEqual(explorer.selection(), []); assert.equal(explorer.page, null);
+  }
+});
 function harness() {
   const calls = []; let userId = 'u'; let response = page([row(1)], 'opaque_cursor');
   const api = {user: async () => ({id: userId}), executions: async filters => { calls.push(filters); return response; }};

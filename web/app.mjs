@@ -9,6 +9,8 @@ import { createExplorer, localDateToIso } from './explorer.mjs';
 localizePage(document);
 const $ = id => document.getElementById(id);
 const messages = {
+  selection_limit: t('Plus de 50 exécutions sélectionnables correspondent aux filtres. Affinez les filtres ; la sélection précédente est conservée.'),
+  selection_scan_limit: t('La recherche dépasse 100 pages. Affinez les filtres ; la sélection précédente est conservée.'),
   another_operation_busy: t("Une opération est déjà en cours."),
   retry_unavailable: t("Retry indisponible : la source doit être en erreur avec un état de reprise enregistré compatible, sans attente ni passages multiples."),
   retry_node_changed: t("Un node à reprendre a disparu, changé de type ou est désactivé dans le workflow actuel."),
@@ -78,6 +80,8 @@ function sync() {
   $('execution-search').disabled = busy || !$('workflow-id').value;
   $('filter-status').disabled = busy || operation() === 'retry';
   $('selection-clear').disabled = busy || !explorer.selection().length;
+  $('selection-all').disabled = busy || !explorer.page;
+  $('selection-page').disabled = busy || !explorer.page?.rows.some(row => row.selectable);
   $('bulk-run').disabled = busy || !bulkReady || !$('bulk-confirm').checked;
   $('bulk-stop').hidden = !bulkRunning;
   document.querySelectorAll('#bulk-results button').forEach(button => { button.disabled = busy; });
@@ -281,6 +285,22 @@ $('selection-clear').addEventListener('click', () => {
   explorer.clearSelection(); invalidate(); syncSelection();
   document.querySelectorAll('#execution-rows input').forEach(checkbox => { checkbox.checked = false; });
 });
+function refreshSelectedRows() {
+  invalidate(); syncSelection();
+  if (explorer.page) renderPage(explorer.page);
+}
+$('selection-page').addEventListener('click', () => {
+  if (busy) return;
+  explorer.selectPage(); refreshSelectedRows();
+  say(t('Seules les exécutions sélectionnables de cette page sont sélectionnées. Vérifiez la sélection avant tout envoi.'));
+});
+$('selection-all').addEventListener('click', () => action(async () => {
+  invalidate(); clearBulk();
+  say(t('Recherche de toutes les exécutions sélectionnables correspondant aux filtres…'));
+  try { await explorer.selectAll(); refreshSelectedRows(); }
+  catch (error) { if (!explorer.page) resetExplorer(); throw error; }
+  say(t('Toutes les exécutions sélectionnables correspondant aux filtres sont sélectionnées. Vérifiez la sélection avant tout envoi.'));
+}));
 async function loadSession() { const user = await manager.session(); $('session-status').textContent = t`Connecté · ${user.firstName || t("Utilisateur n8n")}`; await picker.search(); }
 $('page-reset').addEventListener('click', () => action(async () => {
   picker.reset(); $('workflow-id').value = ''; $('execution-id').value = '';

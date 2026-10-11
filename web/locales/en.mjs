@@ -1,4 +1,11 @@
 export const english = Object.freeze({
+  'Tout sélectionner': 'Select all',
+  'Sélectionner cette page uniquement': 'Select this page only',
+  'Plus de 50 exécutions sélectionnables correspondent aux filtres. Affinez les filtres ; la sélection précédente est conservée.': 'More than 50 selectable executions match the filters. Narrow the filters; the previous selection is retained.',
+  'La recherche dépasse 100 pages. Affinez les filtres ; la sélection précédente est conservée.': 'The search exceeds 100 pages. Narrow the filters; the previous selection is retained.',
+  'Seules les exécutions sélectionnables de cette page sont sélectionnées. Vérifiez la sélection avant tout envoi.': 'Only selectable executions on this page are selected. Check the selection before submitting.',
+  'Recherche de toutes les exécutions sélectionnables correspondant aux filtres…': 'Finding all selectable executions matching the filters…',
+  'Toutes les exécutions sélectionnables correspondant aux filtres sont sélectionnées. Vérifiez la sélection avant tout envoi.': 'All selectable executions matching the filters are selected. Check the selection before submitting.',
   'Voir l’exécution {0} dans n8n (nouvel onglet)': 'View execution {0} in n8n (new tab)',
   'Une opération est déjà en cours.': 'An operation is already in progress.',
   'Retry indisponible : la source doit être en erreur avec un état de reprise enregistré compatible, sans attente ni passages multiples.': 'Retry unavailable: the source must have failed with compatible saved retry state, without waiting or multiple runs.',
