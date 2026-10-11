@@ -27,7 +27,7 @@ test('bulk checks sources individually and returns metadata only without POST or
   const progress = [];
   const rows = await prepareSelection({selection: parseSelection(ids.workflowId, '1 2 3', config), api: h.api, storage: h.store, locks: locks(), config, onProgress: rows => progress.push(rows.length)});
   assert.deepEqual(rows.map(row => row.code), ['compatible', 'redacted_data', 'compatible']);
-  assert.deepEqual(progress, [1, 2, 3]);
+  assert.deepEqual(progress, [3]);
   assert.equal(h.store.map.size, 1);
   assert.ok(!h.calls.some(call => typeof call === 'object'));
   assert.ok(!JSON.stringify(rows).includes('order'));

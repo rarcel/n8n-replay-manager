@@ -4,6 +4,45 @@ import { createBulkManager, parseSelection } from '../web/bulk.mjs';
 import { config } from '../web/config.mjs';
 const workflowId = 'fixture-workflow';
 
+test('preview bounds parallel reads, shares only in-flight checks and keeps order; submission rereads without sharing', async () => {
+  const h = harness();
+  let active = 0, peak = 0, workflowReads = 0, userReads = 0;
+  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  h.api.user = async () => { userReads++; await delay(2); return {id: 'user'}; };
+  h.api.workflow = async () => { workflowReads++; await delay(2); return h.workflow; };
+  h.api.execution = async id => {
+    active++; peak = Math.max(peak, active); await delay(id === '1' ? 12 : 4); active--;
+    const source = structuredClone(h.sources['1']); source.id = id;
+    source.data.resultData.runData.Webhook[0].data.main[0][0].json.id = id;
+    return source;
+  };
+  const selection = parseSelection(workflowId, '1 2 3 4 5 6 7 8', config), progress = [];
+  const preview = await h.bulk.preview(selection, rows => progress.push(rows.map(row => row.executionId)));
+  assert.equal(peak, 4); assert.equal(active, 0); assert.equal(preview.runnable, true);
+  assert.deepEqual(preview.rows.map(row => row.executionId), selection.map(ids => ids.executionId));
+  assert.deepEqual(progress.map(rows => rows.length), [4, 8]);
+  assert.equal(workflowReads, 3); // Two concurrent waves, then a fresh final read.
+  assert.ok(userReads < 2 * selection.length); assert.equal(h.posts.length, 0); assert.equal(h.map.size, 0);
+  const workflowReadsBeforeSubmit = workflowReads;
+  const result = await h.bulk.submit(selection, true);
+  assert.equal(result.reason, 'complete'); assert.equal(workflowReads - workflowReadsBeforeSubmit, 8);
+  assert.deepEqual(h.posts.map(payload => payload.triggerToStartFrom.data.data.main[0][0].json.id), selection.map(ids => ids.executionId));
+});
+
+test('a fatal parallel preview waits for in-flight reads, clears approvals and does not launch another wave', async () => {
+  const h = harness(); let started = 0, finished = 0;
+  h.api.execution = async id => {
+    started++; await new Promise(resolve => setTimeout(resolve, id === '1' ? 1 : 8)); finished++;
+    if (id === '1') throw Object.assign(new Error(), {code: 'session_expired'});
+    return {...structuredClone(h.sources['1']), id};
+  };
+  const selection = parseSelection(workflowId, '1 2 3 4 5 6', config);
+  await assert.rejects(h.bulk.preview(selection), {code: 'session_expired'});
+  assert.equal(started, 4); assert.equal(finished, 4);
+  await assert.rejects(h.bulk.submit(selection, true), {code: 'preview_required'});
+  assert.equal(h.posts.length, 0); assert.equal(h.map.size, 0);
+});
+
 test('batches above 50 require a separate explicit acknowledgement before any POST', async () => {
   const h = harness();
   h.api.execution = async id => {

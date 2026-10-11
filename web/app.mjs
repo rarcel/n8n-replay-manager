@@ -171,7 +171,7 @@ $('workflow-id').addEventListener('input', resetExplorer);
 $('bulk-preview').addEventListener('click', () => action(async () => {
   invalidate(); clearBulk();
   const selection = parseSelection(ids().workflowId, explorer.selection().join(' '), config, operation());
-  const render = rows => { renderBulkRows(rows);
+  const render = rows => { renderBulkRows(rows.slice($('bulk-results').children.length), true);
     $('bulk-summary').textContent = t`${rows.length}/${selection.length} vérifiées · ${rows.filter(row => row.code === 'compatible').length} compatibles. Aucun envoi.`; };
   try {
     const result = await bulk.preview(selection, render); bulkReady = result.runnable;
@@ -186,9 +186,9 @@ $('bulk-preview').addEventListener('click', () => action(async () => {
   } catch (error) { clearBulk(); throw error; }
 }));
 
-function renderBulkRows(rows) {
+function renderBulkRows(rows, append = false) {
   const workflowId = ids().workflowId;
-  $('bulk-results').replaceChildren();
+  if (!append) $('bulk-results').replaceChildren();
   for (const row of rows) {
     const li = document.createElement('li'), text = document.createElement('span');
     const state = {not_sent: t("Non envoyée"), sending: t("Dernière vérification / envoi en cours"), submitted: t`Soumise : ${row.resultExecutionId} · réussite à vérifier`, blocked: messages[row.code] ?? t("Envoi bloqué ou résultat inconnu")};

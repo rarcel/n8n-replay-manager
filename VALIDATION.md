@@ -2,6 +2,8 @@
 
 ## Current result
 
+Preview uses bounded waves (default four, configurable 1–8), parallel execution/workflow reads and in-flight-only deduplication of identical session/workflow requests. Final identity/definition/scopes/pins checks remain; every submission rereads without sharing. Preview rows append per wave. Tests verify peak concurrency, order, read counts, zero preview POSTs/persistence, fresh submission reads and waiting/cleanup after fatal errors. A local synthetic 40-source benchmark with 10 ms per read measured 2,090 ms / 164 reads at concurrency 1 versus 510 ms / 74 reads at concurrency 4 (4.1×); this is not a production performance claim.
+
 Date filters retain a native calendar with bounded hour/minute controls. Empty controls initialize at current local time on opening, existing choices are preserved, and wheel/keyboard changes clamp to 00:00–23:59 without date rollover. Clear/reset removes the date bound. Synthetic tests cover initialization, unchanged choices, bounds, disabled controls, typed values and keyboard navigation; native calendar visual behavior is not claimed tested.
 
 Selections and batches may exceed 50 executions. An additional explicit volume acknowledgement is required before any submission above that threshold, alongside effect confirmation. A synthetic 51-source batch is blocked with zero POSTs/markers without acknowledgement and completes sequentially with 51 markers after acknowledgement. Confirmation is cleared on new preview/selection; unchanged stop, expiry, revalidation and duplicate protections remain.
@@ -10,7 +12,7 @@ Step 2 has Select all (filtered pages, atomic selection across filtered pages) a
 
 Execution numbers in step 2 link to their n8n details on the same origin in a new tab. The synthetic UI test verifies the link destination, ID label, translated accessible name and opener protection.
 
-71 synthetic tests passed via node scripts/validate.mjs. French language variants and the English fallback, static labels/accessibility attributes, untouched interpolated values and an English execution-selection/reset journey are covered. No real n8n request or replay was performed. Container deployment and visual browser checks remain outstanding.
+73 synthetic tests passed via node scripts/validate.mjs. French language variants and the English fallback, static labels/accessibility attributes, untouched interpolated values and an English execution-selection/reset journey are covered. No real n8n request or replay was performed. Container deployment and visual browser checks remain outstanding.
 
 ## Automated checks
 

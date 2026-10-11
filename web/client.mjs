@@ -61,7 +61,14 @@ export function createManager({api, storage, locks, config, digest = digestPlan,
   const read = key => { try { const raw = storage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { throw new ReplayError('storage_unavailable'); } };
   const write = (key, value) => { try { storage.setItem(key, JSON.stringify(value)); } catch { throw new ReplayError('storage_unavailable'); } };
   const identity = async () => { const user = await api.user(); if (typeof user?.id !== 'string' || !user.id) throw new ReplayError('invalid_response'); return user; };
-  const load = async ids => { validateIds(ids.workflowId, ids.executionId, config); const prepare = operationFor(ids) === 'retry' ? prepareRetry : prepareReplay; return prepare(await api.execution(ids.executionId), await api.workflow(ids.workflowId), ids, config); };
+  const load = async ids => {
+    validateIds(ids.workflowId, ids.executionId, config);
+    const prepare = operationFor(ids) === 'retry' ? prepareRetry : prepareReplay;
+    const reads = await Promise.allSettled([api.execution(ids.executionId), api.workflow(ids.workflowId)]);
+    const failure = reads.find(result => result.status === 'rejected');
+    if (failure) throw failure.reason;
+    return prepare(reads[0].value, reads[1].value, ids, config);
+  };
   async function locked(user, ids, callback) {
     if (!locks?.request) throw new ReplayError('locks_unavailable');
     return locks.request(keyFor(user.id, ids), {mode: 'exclusive', ifAvailable: true}, async lock => {

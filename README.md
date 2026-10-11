@@ -56,7 +56,7 @@ Copy web/ into your HTTPS reverse proxy’s static directory and route only /rep
 3. Choose **Replay from trigger** or **Native retry**, adjust status/start-date filters and select sources. Retry restricts the list to errors. Dates use the browser time zone and inclusive bounds. Opening an empty date control initializes today and the current local time; an existing choice is preserved. Wheel over hours or minutes to decrease (up) or increase (down), bounded between 00:00 and 23:59 without changing the date. Keyboard arrows adjust the time; Home/End go to the day boundaries. The × button clears that date bound. Selection is retained across pages; changing workflow, filters or mode clears it.
    Click an execution number to open its details in n8n in a new tab without changing the selection.
    **Select all** reads filtered pages and selects eligible summaries, including selections above 50 executions. Its scan is bounded to 100 pages per action; if exceeded, narrow the filters (previous choices are retained). **Select this page only** replaces all choices with eligible rows on the displayed page. Neither action submits anything; full source compatibility is checked later.
-4. Click **Check selection**. Review all sources, the current destination workflow/version and the possible effects. One incompatible or locally reserved source blocks the whole batch; remove it and check again.
+4. Click **Check selection**. Verification runs in waves of four sources by default, sharing only identical reads already in flight; the current workflow and identity are read again at the end. Review all sources, the current destination workflow/version and the possible effects. One incompatible or locally reserved source blocks the whole batch; remove it and check again.
 5. Confirm the effects, then start the batch. For more than 50 executions, review the displayed total and also acknowledge the additional volume warning; submission is blocked without this separate acknowledgement. Changing the selection or preparing a new preview clears the acknowledgement. Submissions are sequential. Stop takes effect after the current submission and cannot cancel a POST already sent.
 6. Check each result in n8n and verify business effects. A new execution ID means **submitted**, not necessarily successful.
 
@@ -100,6 +100,8 @@ workflows: Object.freeze({
   'your-workflow-id': Object.freeze({trigger: 'Recorded trigger name'}),
 }),
 ~~~
+
+Set previewConcurrency in web/config.mjs to tune verification concurrency (default 4, clamped to 1–8). Execution and workflow reads overlap; session/workflow results are not cached after their requests complete or reused for submission. Rendering appends preview rows per wave. POSTs remain sequential, with full fresh source/workflow/session checks before each one.
 
 An explicit name takes precedence over trigger discovery for that workflow. Set discoverWorkflows: false to limit the client catalogue to configured workflows. This is a client guardrail, not a replacement for n8n permissions.
 

@@ -17,9 +17,25 @@ async function inspectSelection({selection, api, storage, locks, config, now = D
   const user = await api.user();
   if (typeof user?.id !== 'string' || !user.id) throw new ReplayError('invalid_response');
   const rows = [], entries = [];
+  const concurrency = Math.max(1, Math.min(8, Number.isInteger(config.previewConcurrency) ? config.previewConcurrency : 4));
+  let previewing = true;
+  const pendingReads = new Map();
+  function sharedRead(method, ...args) {
+    if (!previewing) return api[method](...args);
+    const key = JSON.stringify([method, ...args]);
+    if (!pendingReads.has(key)) {
+      const request = Promise.resolve().then(() => api[method](...args)).finally(() => pendingReads.delete(key));
+      pendingReads.set(key, request);
+    }
+    return pendingReads.get(key);
+  }
+  const previewApi = {
+    user: () => sharedRead('user'), workflow: id => sharedRead('workflow', id),
+    execution: id => api.execution(id), run: (...args) => api.run(...args), retry: id => api.retry(id),
+  };
   let targetVersion = null, targetDefinition = null;
-  for (const ids of selection) {
-    const manager = createManager({api, storage, locks, config, now});
+  async function inspect(ids, index) {
+    const manager = createManager({api: previewApi, storage, locks, config, now});
     let kept = false;
     try {
       const {user: current, plan, record} = await manager.preview(ids);
@@ -29,21 +45,34 @@ async function inspectSelection({selection, api, storage, locks, config, now = D
       if (targetDefinition !== null && targetDefinition !== definition) throw new ReplayError('preview_changed');
       targetVersion = plan.versionId;
       targetDefinition = definition;
-      rows.push({executionId: ids.executionId, workflowName: plan.workflowName, versionId: plan.versionId,
-        trigger: plan.trigger, triggerType: plan.triggerType, operation: plan.operation ?? 'replay', itemCount: plan.itemCount, code: record ? 'existing_reservation' : 'compatible'});
-      if (retain && !record) { entries.push({ids, manager}); kept = true; }
+      rows[index] = {executionId: ids.executionId, workflowName: plan.workflowName, versionId: plan.versionId,
+        trigger: plan.trigger, triggerType: plan.triggerType, operation: plan.operation ?? 'replay', itemCount: plan.itemCount, code: record ? 'existing_reservation' : 'compatible'};
+      if (retain && !record) { entries[index] = {ids, manager}; kept = true; }
     } catch (error) {
       if (['session_changed', 'session_expired', 'open_editor_first', 'preview_changed'].includes(error.code)) {
         entries.forEach(entry => entry.manager.clearApproval()); throw error;
       }
-      rows.push({executionId: ids.executionId, code: error.code ?? 'invalid_response'});
+      rows[index] = {executionId: ids.executionId, code: error.code ?? 'invalid_response'};
     } finally { if (!kept) manager.clearApproval(); }
-    try { onProgress([...rows]); }
-    catch (error) { entries.forEach(entry => entry.manager.clearApproval()); throw error; }
   }
-  try { if ((await api.user()).id !== user.id) throw new ReplayError('session_changed'); }
-  catch (error) { entries.forEach(entry => entry.manager.clearApproval()); throw error; }
-  return {rows, entries, userId: user.id, selection};
+  try {
+    for (let start = 0; start < selection.length; start += concurrency) {
+      // Wait for every read in the wave before cleanup or launching another wave.
+      const results = await Promise.allSettled(selection.slice(start, start + concurrency).map((ids, offset) => inspect(ids, start + offset)));
+      const failure = results.find(result => result.status === 'rejected');
+      if (failure) throw failure.reason;
+      onProgress([...rows]);
+    }
+    if ((await api.user()).id !== user.id) throw new ReplayError('session_changed');
+    if (targetVersion !== null) {
+      const workflow = await api.workflow(selection[0].workflowId);
+      if (!Array.isArray(workflow.scopes) || !['workflow:read', 'workflow:execute'].every(scope => workflow.scopes.includes(scope))) throw new ReplayError('workflow_scope_missing');
+      if (workflow.versionId !== targetVersion || JSON.stringify({nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings}) !== targetDefinition || Object.keys(workflow.pinData ?? {}).length) throw new ReplayError('preview_changed');
+    }
+    if ((await api.user()).id !== user.id) throw new ReplayError('session_changed');
+    return {rows, entries: entries.filter(Boolean), userId: user.id, selection};
+  } catch (error) { entries.forEach(entry => entry.manager.clearApproval()); throw error; }
+  finally { previewing = false; pendingReads.clear(); }
 }
 
 export async function prepareSelection(options) { return (await inspectSelection(options)).rows; }
