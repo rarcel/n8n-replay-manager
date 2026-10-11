@@ -1,0 +1,126 @@
+# Replay Manager — navigateur n8n 2.42.4
+
+Cette version remplace le POC de passerelle de service. Le rejeu se fait exclusivement dans le navigateur : une interface statique sous **`/replay-manager/`**, sur la même origine que n8n, utilise la session de l'utilisateur. Aucune image n8n modifiée, clé API, session exportée, authentification de service ou injection DI.
+
+L'interface reprend les surfaces neutres, la police Inter, les boutons orange/corail et les dimensions compactes de n8n 2.42.4. Elle lit la préférence `N8N_THEME` (`light`, `dark`, `system`) du même navigateur sans la modifier, et suit les changements de thème de l'éditeur. C'est une interface distincte : elle ne charge pas les bundles privés n8n et les personnalisations de thème propres à votre installation ne sont pas automatiquement reprises.
+
+**Cible de déploiement retenue : Traefik.** Cette révision porte sur l'intégration visuelle ; aucune configuration Traefik de production n'est encore ajoutée ni déployée. Les exemples nginx ci-dessous restent des illustrations/sandbox. L'étape de déploiement sera adaptée à vos routers, entrypoints et réseau Docker existants.
+
+Le Dockerfile construit uniquement un serveur nginx non root pour l'interface et le reverse proxy. Compose utilise directement `docker.n8n.io/n8nio/n8n:2.42.4`, sans dérivation. Les routes éditeur utilisées sont internes ; leur schéma et leur comportement doivent être validés sur l'instance cible. Le POC ne transforme pas ces routes en API officiellement supportée.
+
+## Architecture
+
+```text
+Navigateur connecté
+  https://n8n.exemple.fr/replay-manager/  -> fichiers statiques
+  https://n8n.exemple.fr/rest/…          -> n8n officiel
+  https://n8n.exemple.fr/                -> éditeur n8n
+```
+
+La même origine signifie **même schéma, hôte et port**, pas seulement le même domaine principal. Ouvrir l'éditeur sur un port et le manager sur un autre ne partage pas le stockage navigateur attendu. Ce projet suppose n8n à la racine avec `/rest` ; une installation sous un autre préfixe nécessite d'adapter puis tester les chemins et le reverse proxy.
+
+La page statique est accessible sans session et ne contient aucune donnée privée. La lecture des données et la soumission sont authentifiées par n8n. Chaque requête utilise `credentials: "same-origin"` et le header `browser-id` contenant la valeur **existante** de `localStorage['n8n-browserId']`. L'interface ne lit pas le cookie HttpOnly ; le navigateur l'envoie automatiquement selon ses règles. Aucun identifiant n8n n'est créé ou écrasé par le manager. En l'absence de contexte, il demande d'ouvrir l'éditeur et de s'y connecter normalement.
+
+Seuls ces appels sont effectués :
+
+| Opération | Appel |
+|---|---|
+| Vérifier le compte courant | GET `/rest/login` |
+| Lire source/résultat | GET `/rest/executions/{id}` |
+| Lire le workflow et ses scopes | GET `/rest/workflows/{id}` |
+| Soumettre après confirmation | POST `/rest/workflows/{id}/run` |
+
+Aucun POST login, retry natif, API publique ou endpoint de modification de workflow n'est utilisé. n8n contrôle session, lecture de l'exécution, scopes du workflow et exécution. L'interface vérifie en plus les scopes `workflow:read` et `workflow:execute`. Le contrôle client n'est pas une frontière d'autorisation : les permissions côté n8n font autorité. La liste dans `web/config.mjs` est un garde-fou de l'interface, pas une restriction serveur opposable à un utilisateur qui emploie l'éditeur ou l'API directement.
+
+## Étape 1 — vérifier les fichiers
+
+Prérequis pour les tests : Node >=22. Aucun npm install requis. Le décodeur flatted 3.4.4 et sa licence ISC sont intégrés localement ; aucune ressource distante n'est chargée par l'interface.
+
+```powershell
+node scripts/validate.mjs
+```
+
+Pour voir uniquement l'interface sans instance n8n :
+
+```powershell
+node scripts/preview.mjs
+```
+
+Ouvrir `http://127.0.0.1:8088/replay-manager/`. Cet aperçu n'a **aucun backend n8n**, refuse les routes métier et ne peut pas rejouer. Il affiche donc normalement une demande de connexion à l'éditeur. Ne pas utiliser cet aperçu pour accéder à la session d'un autre domaine.
+
+## Étape 2 — utiliser votre domaine existant
+
+Le chemin le plus direct consiste à servir les fichiers `web/` depuis votre reverse proxy HTTPS existant, sans changer n8n. Copier leur contenu dans `/srv/replay-manager/`, puis intégrer `deploy/existing-nginx-location.conf` dans le serveur HTTPS du domaine de n8n. Ce snippet utilise un alias local ; il suppose que les fichiers sont présents dans le serveur/conteneur nginx. Conserver les routes, headers, WebSockets, cookies et protections n8n existants. Le script mjs doit être servi avec un MIME JavaScript et les styles avec un MIME CSS.
+
+La configuration complète `deploy/nginx.conf` illustre une autre option : un conteneur dédié sert les fichiers sous `/replay-manager/` et relaie les autres chemins à `n8n:5678`. Pour l'intégrer derrière votre reverse proxy, conserver une seule origine extérieure et adapter la confiance et les headers du proxy à la chaîne réelle. Ne pas exposer ce conteneur via un autre domaine ou port pour le parcours utilisateur. Les variables n8n `N8N_EDITOR_BASE_URL`, `WEBHOOK_URL`, `N8N_PROXY_HOPS` et la configuration HTTPS doivent refléter votre installation ; le Compose fourni n'est qu'une sandbox HTTP locale.
+
+Aucune adresse, credential ou session de votre installation n'est incluse. Les noms d'hôte du déploiement, la résolution du service n8n et les certificats HTTPS restent à configurer sur votre infrastructure. Le code de l'interface partage le périmètre de confiance de l'éditeur : maintenir ses dépendances, éviter les scripts externes et conserver sa CSP. La CSP fournie s'applique uniquement aux fichiers du manager et ne remplace pas celle des pages n8n.
+
+## Alternative — sandbox Docker neuve
+
+```powershell
+./scripts/validate-docker.ps1
+docker compose up -d --build
+```
+
+Ouvrir d'abord `http://localhost:8080/`, effectuer l'installation/connexion n8n normale, puis `http://localhost:8080/replay-manager/` **dans le même navigateur**. Ne pas alterner localhost et 127.0.0.1. Le navigateur doit supporter Web Locks et le stockage local ; localhost fonctionne comme contexte sécurisé dans les navigateurs récents. Sur un serveur distant, HTTPS est requis.
+
+Cette instance est neuve : elle ne contient ni votre workflow ni l'exécution `942538`. Utiliser un workflow de test existant et autorisé avec des effets contrôlés ; ne pas importer une production pour contourner des droits. Pour ajouter un workflow au manager, ajuster explicitement `web/config.mjs` (ID et nom exact du Webhook), puis reconstruire/redistribuer les fichiers. Par défaut, seul `Q4WmdAk9qV7zpK97` avec trigger `Webhook` est configuré et `942538` est préremplie. Ces identifiants proviennent du contexte utilisateur.
+
+Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est accessible par son réseau Docker. `N8N_SECURE_COOKIE=false` est réservé à cette sandbox HTTP. En HTTPS réel, garder les cookies sécurisés et la configuration autorisée de l'instance. L'image nginx `stable-alpine` est un tag évolutif : après validation, pinner son digest dans votre déploiement. Pinner également le digest de n8n 2.42.4 si vous exigez une reconstruction immuable.
+
+## Étape 3 — vérifier puis rejouer
+
+1. Se connecter à l'éditeur n8n sur la même origine.
+2. Ouvrir `/replay-manager/`, saisir les IDs puis cliquer **Vérifier la source**. Cette étape est uniquement en lecture.
+3. Examiner le workflow, le Webhook et le nombre d'éléments ; confirmer les effets possibles.
+4. Cliquer **Lancer le rejeu**. Session, source et workflow sont relus et le plan est comparé au plan approuvé. Une vérification expire après cinq minutes.
+5. Un nouvel ID signifie seulement **soumis**. Cliquer **Vérifier le résultat**, puis examiner l'exécution et les effets métier dans n8n.
+
+Le résultat est relu à la demande, sans polling automatique. Le contrôle vérifie nouvel ID, workflow et mode manuel ; il distingue une réussite, une erreur et une exécution encore en cours. Aucun payload ni résultat métier brut n'est affiché, logué ou persisté par le manager ; les données source sont nécessairement reçues en mémoire par le navigateur autorisé, et restent visibles dans ses outils réseau.
+
+Le contexte fourni rapporte qu'un POST éditeur précédent a créé `942541` depuis `942538`, validée par l'utilisateur. Cette observation n'a pas été reproduite par ce projet. Ne pas la présenter comme un test d'intégration du manager.
+
+## Payload et conditions couvertes
+
+La source doit appartenir au workflow et être terminée (`success` ou `error`, avec `stoppedAt`). Les erreurs terminales n8n peuvent avoir `finished=false` ; ce champ seul ne bloque donc pas leur lecture. Les données source sont rejouées dans le **workflow actuel**, même si la version historique est absente ou différente. La version actuelle doit être disponible et rester stable entre aperçu et envoi ; les nodes, connections et settings relus sont également comparés. Le POC refuse toutes les données épinglées, les binaires, les données signalées comme masquées par n8n, les multiples passages du trigger, les erreurs du trigger et un Webhook désactivé ou d'un type différent.
+
+L'API éditeur renvoie les données dans une enveloppe `data`, avec les données d'exécution éventuellement sérialisées via flatted. Le manager décode ce format ; il n'effectue aucune requête pour demander le démasquage. Réponse HTTP ou données d'exécution >8 MiB refusées ; payload de rejeu >2 MiB et >1 000 items refusés. Une réponse sans schéma/scopes/version compatibles bloque l'opération.
+
+**Le payload est un ITaskData issu de `runData.Webhook[0]`, avec les sorties sous `triggerToStartFrom.data.data.main`.** Les timings du passage source et son index valide sont conservés ; les sorties sont copiées sous forme d'items JSON, sans références binaires ni pairedItem. Les sources de provenance sont réinitialisées à une liste vide, et les métadonnées/entrées annexes ne sont pas retransmises. Aucun workflowData/runData complet fourni par le navigateur ne sert de définition à exécuter. Le contrôleur n8n charge son workflow stocké.
+
+Le premier POC avait placé `main` un niveau trop haut. Cette version corrige ce défaut et le couvre par un test. L'ancien projet doit rester une archive et ne doit pas être déployé pour ce parcours.
+
+## Protection locale contre les doubles envois
+
+### Diagnostic des versions
+
+Le choix explicite est de réutiliser les données du Webhook avec la définition et les credentials actuels. La version historique absente ou différente ne bloque plus. La destination actuelle et sa version sont affichées avant confirmation. Aucune définition historique n'est injectée et aucune version source n'est falsifiée. Une version actuelle absente bloque toujours ; une modification entre aperçu et relecture bloque avant POST. La définition relue sert uniquement au digest en mémoire, jamais au payload ni au stockage local. Le POST interne ne fournit pas de précondition atomique de version : une modification entre la dernière lecture et l'exécution reste possible, et doit être évitée pendant le rejeu. Le manager ne garantit donc pas une reproduction historique ni un verrou serveur du workflow.
+
+Le manager utilise Web Locks entre onglets d'une même origine, et écrit un marqueur dans son stockage local **avant** le POST. La clé distingue le compte n8n, le workflow et l'exécution source. Le marqueur contient uniquement IDs, date, état et nouvel ID éventuel. Après rechargement, une tentative existante bloque un nouvel envoi pour cette source.
+
+Un timeout, une réponse illisible, une erreur ou `waitingForWebhook` conserve le blocage. Aucun POST n'est réessayé automatiquement. Vérifier les exécutions dans n8n puis, si une nouvelle tentative est voulue, utiliser le panneau **Autoriser une nouvelle tentative**, confirmer le risque et lever explicitement le blocage. Une nouvelle vérification reste obligatoire. En cas d'attente Webhook, examiner cette attente via les fonctions autorisées n8n avant toute nouvelle action.
+
+Ce n'est **pas une idempotence serveur**. Un autre appareil, un autre profil, l'effacement du stockage ou un envoi hors interface peut créer un doublon. Les marqueurs ne sont ni un journal d'audit inviolable ni une déduplication métier. Une garantie entre appareils nécessiterait une coordination serveur supplémentaire ; elle n'est pas incluse dans cette architecture navigateur.
+
+## Limites du mode manuel et des credentials
+
+Le rejeu crée une nouvelle exécution manuelle ; il ne reprend pas une exécution suspendue et ne restaure pas tous ses résultats intermédiaires. Les nodes peuvent répéter leurs actions, y compris des modifications qu'ils effectuent eux-mêmes dans n8n. Le manager n'envoie aucune requête de modification, activation ou import du workflow.
+
+Les credentials et leur contexte sont ceux du workflow et de la session courante, pas une copie historique. Des tokens expirés, credentials supprimés/dynamiques ou devenus inaccessibles peuvent empêcher l'exécution. Les données JSON du Webhook peuvent aussi contenir des headers ou tokens anciens. Vérifier séparément expressions, subworkflows, runners, mode queue/offload, error workflows et différences manuel/production. Cookie optionnel dans executeManually ne veut pas dire contexte credentials interchangeable ; le parcours conserve la session de l'utilisateur.
+
+Les routes éditeur et la lecture de `n8n-browserId` restent des contrats internes propres à la version examinée. Aucune désactivation d'authentification, MFA, browser-id, redaction, scopes ou sandbox n'est proposée. Si l'instance exige un contexte différent, la corriger par les mécanismes n8n autorisés ou considérer cette version du POC comme incompatible.
+
+## Fichiers et sources
+
+`web/` contient l'interface, l'adaptateur navigateur et le validateur du payload ; `deploy/` contient nginx ; `test/` contient uniquement des fixtures factices ; `scripts/` contient validation et aperçu sans n8n. `AGENTS.md` encadre les changements futurs et `VALIDATION.md` distingue tests locaux et validations réelles restantes.
+
+Sources examinées au tag n8n@2.42.4 :
+
+- [Couleurs et primitives](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/frontend/%40n8n/design-system/src/css/_primitives.scss), [tokens du thème](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/frontend/%40n8n/design-system/src/css/_tokens.scss) et [préférence locale](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/frontend/editor-ui/src/app/constants/localStorage.ts). Inter est servie localement avec sa licence OFL dans `web/fonts/`.
+
+- [Identifiant navigateur](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/%40n8n/constants/src/browser.ts) et [client REST](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/frontend/%40n8n/rest-api-client/src/utils.ts).
+- [Authentification](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/auth/auth.service.ts) et [compte courant](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/controllers/auth.controller.ts).
+- [Lecture et droits des exécutions](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/executions.controller.ts) et [sérialisation](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/execution.service.ts).
+- [Contrôleur de rejeu](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/workflows/workflows.controller.ts), [DTO](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/%40n8n/api-types/src/dto/workflows/manual-run.dto.ts), [moteur](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/core/src/execution-engine/workflow-execute.ts) et [test webhooks](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/webhooks/test-webhooks.ts).
+- [Avis de sécurité flatted](https://github.com/WebReflection/flatted/security/advisories) ; version 3.4.4 intégrée avec licence et empreinte vérifiée.

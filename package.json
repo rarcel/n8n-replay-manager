@@ -1,0 +1,1 @@
+{"name":"n8n-replay-manager-browser-poc","version":"0.2.0","private":true,"type":"module","engines":{"node":">=22"},"scripts":{"test":"node --test","validate":"node scripts/validate.mjs","preview":"node scripts/preview.mjs"}}

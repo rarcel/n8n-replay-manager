@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Replay Manager · n8n</title>
+  <link rel="stylesheet" href="./style.css"><script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="Navigation">
+      <a class="brand" href="/replay-manager/"><span class="n8n-wordmark">n8n</span><span class="brand-context">Replay Manager</span></a>
+      <div class="rail-section">Exécutions</div>
+      <a class="nav active" href="/replay-manager/" aria-current="page">↻ <span>Rejouer une exécution</span></a>
+      <a class="nav" href="/" target="_blank" rel="noopener">↗ <span>Ouvrir n8n</span></a>
+      <div class="rail-note"><span class="small-dot"></span> Session n8n<br><p>Vos droits habituels s’appliquent à chaque opération.</p></div>
+      <div class="rail-footer">POC · n8n 2.42.4<br><span>Nouvelle exécution en mode manuel</span></div>
+    </aside>
+    <main>
+      <header class="topbar"><span>Exécutions <span class="breadcrumb-separator">/</span> <strong>Rejeu</strong></span><span class="session" id="session-status">Session à vérifier</span></header>
+      <section class="heading"><div><h1>Rejouer une exécution</h1><p>Vérifiez les données d’une exécution, puis lancez un nouveau passage dans le workflow.</p></div><span class="mode-badge">Exécution manuelle</span></section>
+      <ol class="steps"><li class="current"><span>1</span>Choisir la source</li><li><span>2</span>Vérifier</li><li><span>3</span>Rejouer et contrôler</li></ol>
+      <div class="layout">
+        <section class="card source-card" aria-labelledby="source-title">
+          <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Exécution source</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
+          <form id="source-form">
+            <label for="workflow-id">Identifiant du workflow</label><input id="workflow-id" name="workflow" autocomplete="off" required maxlength="80" spellcheck="false">
+            <label for="execution-id">Identifiant de l’exécution</label><input id="execution-id" name="execution" autocomplete="off" required maxlength="30" inputmode="numeric" spellcheck="false">
+            <p class="field-help">Le rejeu réutilise les données JSON du Webhook enregistré.</p>
+            <button class="button primary" id="preview-button" type="submit">Vérifier la source <span aria-hidden="true">→</span></button>
+          </form>
+          <div class="read-only-note"><span aria-hidden="true">◇</span> Cette vérification ne lance aucune exécution.</div>
+        </section>
+        <section class="card review-card" aria-labelledby="review-title">
+          <div class="card-heading"><span class="card-number">02</span><div><h2 id="review-title">Avant de rejouer</h2><p>Un dernier regard sur ce qui va être lancé.</p></div></div>
+          <div id="empty-state" class="empty-state"><div class="empty-icon" aria-hidden="true">↻</div><h3>Commencez par une vérification</h3><p>Le workflow, le déclencheur et le nombre d’éléments apparaîtront ici.</p></div>
+          <div id="preview-panel" hidden>
+            <div class="verified-badge">✓ Source vérifiée</div>
+            <dl class="summary"><div><dt>Workflow</dt><dd id="workflow-name"></dd></div><div><dt>Exécution source</dt><dd id="source-id"></dd></div><div><dt>Déclencheur</dt><dd id="trigger-name"></dd></div><div><dt>Éléments à rejouer</dt><dd id="item-count"></dd></div></dl>
+            <p>Destination : <strong>workflow actuel</strong> · version <span id="target-version"></span></p>
+            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>Les données du Webhook source seront utilisées avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
+            <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme le rejeu des données source dans le workflow actuel.</span></label>
+            <button class="button primary" id="replay-button" disabled type="button">Lancer le rejeu <span aria-hidden="true">↻</span></button>
+            <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>
+          </div>
+        </section>
+      </div>
+      <section class="message" id="message" role="status" aria-live="polite">Connectez-vous à n8n dans ce navigateur, puis vérifiez votre source.</section>
+      <section class="card result-card" id="result-panel" hidden aria-labelledby="result-title"><div><div class="eyebrow">SUIVI</div><h2 id="result-title">Dernière tentative pour cette source</h2><p id="result-text"></p></div><div class="result-actions"><a id="result-link" class="button secondary" target="_blank" rel="noopener" hidden>Voir dans n8n ↗</a><button id="check-button" class="button secondary" type="button" hidden>Vérifier le résultat</button></div>
+        <details><summary>Autoriser une nouvelle tentative</summary><p>La protection locale bloque un second envoi pour cette source. Vérifiez d’abord dans n8n si une exécution a été créée, surtout si la réponse a été perdue.</p><label class="check-label"><input id="confirm-release" type="checkbox"><span>J’ai vérifié les exécutions n8n et j’accepte le risque de répéter les effets avec une nouvelle tentative.</span></label><button id="release-button" class="button secondary" type="button" disabled>Lever le blocage local</button></details>
+      </section>
+      <footer class="page-footer"><span>Le contenu des éléments n’est pas affiché ni conservé dans l’historique local.</span><span>Validation avant chaque envoi</span></footer>
+    </main>
+  </div>
+</body>
+</html>
