@@ -189,6 +189,20 @@ test('replays into current workflow with missing or different historical version
   await assert.rejects(h.manager.preview(ids), {code: 'workflow_version_unavailable'});
   assert.ok(!h.calls.some(c => typeof c === 'object'));
 });
+test('stored debug pins block manual replay before any POST without modifying workflow', async () => {
+  for (const name of ['Webhook', 'Downstream']) {
+    const h = harness();
+    h.f.workflow.pinData = {[name]: [{json: {debug: 'replacement'}}]};
+    const before = structuredClone(h.f.workflow);
+    await assert.rejects(h.manager.preview(ids), {code: 'pinned_data'});
+    assert.deepEqual(h.f.workflow, before);
+    assert.equal(h.calls.filter(c => typeof c === 'object').length, 0);
+  }
+  const h = harness(); await h.manager.preview(ids);
+  h.f.workflow.pinData = {Webhook: [{json: {debug: 'added after preview'}}]};
+  await assert.rejects(h.manager.submit(ids, true), {code: 'pinned_data'});
+  assert.equal(h.calls.filter(c => typeof c === 'object').length, 0);
+});
 test('blocks changes to current version or definition after preview without POST', async () => {
   for (const change of [f => f.workflow.versionId = 'v2', f => f.workflow.nodes[0].parameters = {path: 'changed'}, f => f.workflow.connections = {Webhook: {main: []}}, f => f.workflow.settings = {executionOrder: 'v1'}]) {
     const h = harness(); await h.manager.preview(ids); change(h.f);

@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Refus des pins conservé après vérification des sources officielles 2.42.4 (contrôleur, DTO, service manuel et moteur) : les pins stockés s’appliquent au rejeu manuel et aucun override n’est accepté par le DTO. Message utilisateur explicite ajouté. 46 tests factices passent, dont pins sur trigger/node aval et ajout après aperçu : refus sans POST ni mutation. Aucun rejeu réel.
+
 - When Executed by Another Workflow ajouté au rejeu individuel et bulk. Sources officielles n8n 2.42.4 du node, du service manuel et du moteur examinées. 45 tests factices passent : JSON multi-items, ITaskData imbriqué, confirmation, aucun contexte parent transmis, aucune mutation/persistance de payload, refus des binaires/redaction/runs multiples/ambiguïté/type historique incompatible et changements de source/schéma avant POST. Aucun appel à une instance réelle ; comportement des entrées et effets réels du sous-workflow à valider sur instance autorisée.
 
 - Modèle Traefik préparé avec serveur statique dédié sans upstream n8n, réseau externe, router limité au chemin du manager, TLS existant ou overlay certResolver et priorité explicite. Docs officielles Traefik consultées. Relecture statique et `git diff --check` effectués ; aucune validation Docker/Compose/nginx/Traefik réelle, Docker étant absent. Les valeurs fournies `n8n.rarcel.net`, `rproxy` et `websecure` sont renseignées ; TLS Vault existant conservé sans resolver ACME. Priorité `1000` et éventuels middlewares/TLSOptions à comparer au POC.

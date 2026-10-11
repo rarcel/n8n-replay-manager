@@ -20,7 +20,7 @@ const messages = {
   workflow_mismatch: 'L’exécution source ne correspond pas au workflow choisi.',
   source_not_terminal: 'La source doit être une exécution terminée, en succès ou en erreur.',
   workflow_version_unavailable: 'La version du workflow actuel est absente. Impossible de vérifier sa stabilité avant l’envoi ; le rejeu est bloqué.',
-  pinned_data: 'Ce workflow contient des données épinglées. Ce POC ne couvre pas ce cas.',
+  pinned_data: 'Le rejeu crée une exécution manuelle : n8n y utilise les données épinglées, qui peuvent remplacer les données rejouées. Désépinglez les données dans l’éditeur, enregistrez le workflow, puis vérifiez à nouveau la source. Le manager ne modifie pas ces données.',
   unsupported_trigger: 'Aucun déclencheur Webhook, Schedule Trigger, Manual Trigger ou When Executed by Another Workflow compatible n’est disponible dans le workflow actuel.',
   ambiguous_trigger: 'La source doit identifier un seul déclencheur compatible, avec un seul passage sans erreur.',
   unsupported_task_metadata: 'Le passage du déclencheur ne contient pas les métadonnées compatibles attendues par n8n.',
