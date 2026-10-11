@@ -34,7 +34,7 @@ test('static text and accessible attributes translate with whitespace and markup
 
 test('every static interface label and translation call has an English entry', () => {
   const html = readFileSync('web/index.html', 'utf8');
-  const neutral = /^(?:Replay Manager(?: · n8n)?|n8n|Workflow|· version|\d+|[↻↗◇/])$/;
+  const neutral = /^(?:Replay Manager(?: · n8n)?|n8n|Workflow|· version|\d+|[↻↗◇/:×])$/;
   for (const match of html.matchAll(/>([^<>]+)</g)) {
     const text = match[1].trim();
     if (text && !neutral.test(text)) assert.ok(english[text], `Missing static translation: ${text}`);

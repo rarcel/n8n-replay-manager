@@ -160,3 +160,12 @@ select { display: block; width: 100%; min-width: 0; margin: 8px 0 14px; padding:
 
 .steps .complete { color: var(--text); }
 .steps .complete span { color: var(--brand); border-color: var(--brand); }
+
+.date-time-picker { display: flex; align-items: center; gap: 4px; margin: 8px 0 14px; }
+.date-time-picker input { margin: 0; padding: 8px 5px; }
+.date-time-picker input[type=date] { flex: 1; width: 0; }
+.date-time-picker input[type=number] { width: 36px; flex: 0 0 36px; text-align: center; appearance: textfield; }
+.date-time-picker input::-webkit-inner-spin-button, .date-time-picker input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.date-time-clear { padding: 4px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.filters .date-time-clear { grid-column: auto; }
+.date-time-clear:disabled { cursor: default; opacity: .5; }

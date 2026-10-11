@@ -1,4 +1,7 @@
 export const english = Object.freeze({
+  'Heures': 'Hours',
+  'Minutes': 'Minutes',
+  'Effacer cette date': 'Clear this date',
   'Validez l’avertissement pour lancer plus de 50 exécutions.': 'Acknowledge the warning to start more than 50 executions.',
   'Plus de 50 exécutions à relancer.': 'More than 50 executions to run again.',
   'Je confirme explicitement le lancement de plus de 50 exécutions.': 'I explicitly confirm starting more than 50 executions.',

@@ -1,3 +1,4 @@
+import { createDateTimePicker } from './date-time.mjs';
 import { t, dateLocale, localizePage } from './i18n.mjs';
 import { journey, redirectToEditor } from './journey.mjs';
 import { config } from './config.mjs';
@@ -54,6 +55,11 @@ const messages = {
   result_mismatch: t("Le résultat ne correspond pas au workflow ou au mode manuel attendu."),
 };
 let busy = false, ready = false, record = null;
+const datePickers = ['after', 'before'].map(bound => createDateTimePicker({
+  value: $('filter-' + bound), date: $('filter-' + bound + '-date'), hours: $('filter-' + bound + '-hours'),
+  minutes: $('filter-' + bound + '-minutes'), clear: $('filter-' + bound + '-clear'),
+  onChange() { invalidate(); resetExplorer(); },
+}));
 const api = createApi({storage: localStorage});
 const manager = createManager({api, storage: localStorage, locks: navigator.locks, config});
 const explorer = createExplorer({api, config});
@@ -74,6 +80,7 @@ function sync() {
   stage(view.step);
   $('page-reset').disabled = busy;
   picker.setBusy(busy);
+  datePickers.forEach(picker => picker.setDisabled(busy));
   for (const id of ['operation-mode', 'workflow-id', 'execution-id', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm', 'large-batch-confirm']) $(id).disabled = busy;
   document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
   $('bulk-preview').disabled = busy || !explorer.selection().length;
@@ -310,7 +317,7 @@ $('selection-all').addEventListener('click', () => action(async () => {
 async function loadSession() { const user = await manager.session(); $('session-status').textContent = t`Connecté · ${user.firstName || t("Utilisateur n8n")}`; await picker.search(); }
 $('page-reset').addEventListener('click', () => action(async () => {
   picker.reset(); $('workflow-id').value = ''; $('execution-id').value = '';
-  $('execution-filters').reset(); invalidate(); resetExplorer(); syncOperation();
+  $('execution-filters').reset(); datePickers.forEach(picker => picker.reset()); invalidate(); resetExplorer(); syncOperation();
   for (const id of ['workflow-name', 'source-id', 'trigger-name', 'item-count', 'target-version', 'result-text']) $(id).textContent = '';
   $('result-link').removeAttribute('href');
   document.querySelectorAll('#result-panel details').forEach(details => { details.open = false; });
