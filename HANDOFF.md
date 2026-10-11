@@ -22,6 +22,8 @@ Préparer la sélection bulk des exécutions d'un même workflow : pagination se
 
 ## État local
 
+Recherche de workflows par partie du nom : champ dédié, Entrée/bouton Rechercher, filtre name côté serveur et pagination sur le même filtre. Nouvelle recherche invalide bulk/approbations. 47 tests factices passent ; test navigateur local bloqué par timeout de connexion.
+
 Pins : refus maintenu car le mode manuel utilise les pins stockés ; le DTO interne ne propose aucun ignorePins/pinData override. Message explique désépinglage et enregistrement dans l’éditeur avant nouvelle simulation. 46 tests factices passent ; aucune modification automatique du workflow.
 
 When Executed by Another Workflow (`n8n-nodes-base.executeWorkflowTrigger`) compatible en individuel et bulk avec sorties JSON enregistrées. Exécution manuelle indépendante du workflow enfant actuel ; parent non relancé, aucun contexte/retour parent restauré. 45 tests factices passent, sources au tag 2.42.4 examinées, aucun rejeu réel. Les anciennes exclusions de sous-workflows ci-dessous sont historiques.

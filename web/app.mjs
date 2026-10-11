@@ -53,10 +53,10 @@ const bulk = createBulkManager({api, storage: localStorage, locks: navigator.loc
 let bulkReady = false, bulkRunning = false;
 const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('execution-id').value.trim()});
 $('execution-id').value = config.defaultExecutionId;
-let workflowSkip = null, catalogUser = null;
+let workflowSkip = null, catalogUser = null, workflowSearch = '';
 function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
-  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm']) $(id).disabled = busy;
+  for (const id of ['workflow-search', 'workflow-search-button', 'workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm']) $(id).disabled = busy;
   document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
   $('bulk-preview').disabled = busy || !explorer.selection().length;
   $('execution-search').disabled = busy || !$('workflow-id').value;
@@ -195,11 +195,12 @@ $('bulk-run').addEventListener('click', () => action(async () => {
 async function loadWorkflows(more = false) {
   const previous = $('workflow-id').value;
   if (!more) {
+    workflowSearch = $('workflow-search').value.trim();
     invalidate(); resetExplorer();
     $('workflow-id').replaceChildren(new Option('Choisir un workflow', ''));
     workflowSkip = null; catalogUser = null; $('workflow-more').hidden = true;
   }
-  const page = await workflowPage(api, config, more ? workflowSkip : 0);
+  const page = await workflowPage(api, config, more ? workflowSkip : 0, workflowSearch);
   if (more && catalogUser !== page.userId) {
     $('workflow-id').replaceChildren(new Option('Actualisez les workflows : compte modifié', ''));
     workflowSkip = null; $('workflow-more').hidden = true; invalidate(); clearBulk();
@@ -214,8 +215,15 @@ async function loadWorkflows(more = false) {
   const wanted = previous || config.defaultWorkflowId;
   if ([...$('workflow-id').options].some(option => option.value === wanted && !option.disabled)) $('workflow-id').value = wanted;
   workflowSkip = page.nextSkip; $('workflow-more').hidden = workflowSkip === null;
-  say('Workflows accessibles chargés. Choisissez le workflow à rejouer.');
+  say($('workflow-id').options.length > 1 ? 'Workflows accessibles chargés. Choisissez le workflow à rejouer.' : 'Aucun workflow trouvé pour cette recherche.');
 }
+$('workflow-search-button').addEventListener('click', () => action(() => loadWorkflows()));
+$('workflow-search').addEventListener('input', () => {
+  $('workflow-more').hidden = workflowSkip === null || $('workflow-search').value.trim() !== workflowSearch;
+});
+$('workflow-search').addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); action(() => loadWorkflows()); }
+});
 $('workflow-load').addEventListener('click', () => action(() => loadWorkflows()));
 $('workflow-more').addEventListener('click', () => action(() => loadWorkflows(true)));
 $('workflow-id').addEventListener('change', () => { invalidate(); resetExplorer(); });

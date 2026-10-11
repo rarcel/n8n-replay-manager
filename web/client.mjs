@@ -45,9 +45,11 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
     execution: id => request(`/rest/executions/${id}`),
     workflow: id => request(`/rest/workflows/${id}`),
     executions: filters => request('/rest/executions', undefined, executionQuery(filters)),
-    workflows: ({skip = 0} = {}) => {
-      if (!Number.isSafeInteger(skip) || skip < 0) throw new ReplayError('invalid_filter');
-      return request('/rest/workflows', undefined, new URLSearchParams({take: '100', skip: String(skip), includeScopes: 'true'}), true);
+    workflows: ({skip = 0, name = ''} = {}) => {
+      if (!Number.isSafeInteger(skip) || skip < 0 || typeof name !== 'string' || name.length > 200) throw new ReplayError('invalid_filter');
+      const query = new URLSearchParams({take: '100', skip: String(skip), includeScopes: 'true'});
+      if (name.trim()) query.set('filter', JSON.stringify({name: name.trim()}));
+      return request('/rest/workflows', undefined, query, true);
     },
     run: (id, payload) => request(`/rest/workflows/${id}/run`, payload),
   };

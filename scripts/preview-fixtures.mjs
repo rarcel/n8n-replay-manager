@@ -29,7 +29,13 @@ const server = createServer(async (req, res) => {
   if (req.method !== 'GET') { rejectedWrites++; return json({error: 'Fixtures: all writes refused'}, 405); }
   if (url.pathname === '/fixture-stats') return json({rejectedWrites, simulatedPosts});
   if (url.pathname === '/rest/login') return json({data: {id: 'fixture-user', firstName: 'Session factice'}});
-  if (url.pathname === '/rest/workflows') return json({count: 2, data: [workflow, {...workflow, id: 'not-configured', name: 'Autre workflow factice'}]});
+  if (url.pathname === '/rest/workflows') {
+    let filter;
+    try { filter = JSON.parse(url.searchParams.get('filter') ?? '{}'); } catch { return json({error: 'Invalid filter'}, 400); }
+    const rows = [workflow, {...workflow, id: 'not-configured', name: 'Autre workflow factice'}].filter(row => row.name.toLowerCase().includes((filter.name ?? '').toLowerCase()));
+    const skip = Number(url.searchParams.get('skip') ?? 0);
+    return json({count: rows.length, data: rows.slice(skip, skip + 100)});
+  }
   if (url.pathname === `/rest/workflows/${workflow.id}`) return json({data: workflow});
   if (url.pathname === '/rest/executions') {
     let filter;

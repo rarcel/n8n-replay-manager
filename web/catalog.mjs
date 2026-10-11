@@ -1,9 +1,9 @@
 import { ReplayError } from './model.mjs';
 
-export async function workflowPage(api, config, skip = 0) {
+export async function workflowPage(api, config, skip = 0, name = '') {
   const user = await api.user();
   if (typeof user?.id !== 'string' || !user.id) throw new ReplayError('invalid_response');
-  const response = await api.workflows({skip});
+  const response = await api.workflows({skip, name});
   if ((await api.user()).id !== user.id) throw new ReplayError('session_changed');
   if (!Array.isArray(response?.data) || response.data.length > 100 || !Number.isSafeInteger(response.count) || response.count < 0) throw new ReplayError('invalid_response');
   const workflows = response.data.map(workflow => {

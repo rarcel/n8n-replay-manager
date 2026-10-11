@@ -23,6 +23,10 @@
         <section class="card source-card" aria-labelledby="source-title">
           <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Exécution source</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
           <form id="source-form">
+            <label for="workflow-search">Rechercher un workflow par nom</label>
+            <input id="workflow-search" type="search" maxlength="200" autocomplete="off" placeholder="Une partie du nom…" aria-describedby="workflow-search-help">
+            <p id="workflow-search-help" class="field-help">Tapez une partie du nom, puis appuyez sur Entrée ou cliquez sur Rechercher. Effacez le champ pour retrouver tous les workflows.</p>
+            <button class="button secondary" id="workflow-search-button" type="button">Rechercher</button>
             <label for="workflow-id">Workflow à rejouer</label><select id="workflow-id" name="workflow" required><option value="">Chargez les workflows accessibles</option></select>
             <button class="button secondary" id="workflow-load" type="button">Actualiser les workflows</button>
             <button class="button secondary" id="workflow-more" type="button" hidden>Plus de workflows</button>

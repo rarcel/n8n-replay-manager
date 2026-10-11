@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Recherche serveur par fragment de nom ajoutée au catalogue (filter.name, pagination take/skip conservée). Contrat DTO/repository n8n 2.42.4 examiné. 47 tests factices passent, notamment encodage du filtre, champ vide et pagination filtrée. Parcours navigateur non validé : les navigateurs de contrôle ont expiré à l’ouverture de l’aperçu localhost ; aucun appel à l’instance réelle.
+
 Refus des pins conservé après vérification des sources officielles 2.42.4 (contrôleur, DTO, service manuel et moteur) : les pins stockés s’appliquent au rejeu manuel et aucun override n’est accepté par le DTO. Message utilisateur explicite ajouté. 46 tests factices passent, dont pins sur trigger/node aval et ajout après aperçu : refus sans POST ni mutation. Aucun rejeu réel.
 
 - When Executed by Another Workflow ajouté au rejeu individuel et bulk. Sources officielles n8n 2.42.4 du node, du service manuel et du moteur examinées. 45 tests factices passent : JSON multi-items, ITaskData imbriqué, confirmation, aucun contexte parent transmis, aucune mutation/persistance de payload, refus des binaires/redaction/runs multiples/ambiguïté/type historique incompatible et changements de source/schéma avant POST. Aucun appel à une instance réelle ; comportement des entrées et effets réels du sous-workflow à valider sur instance autorisée.

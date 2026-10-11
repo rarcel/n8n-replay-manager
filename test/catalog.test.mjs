@@ -37,3 +37,22 @@ test('workflow listing preserves top-level count and sends bounded read-only que
   assert.equal(call.options.credentials, 'same-origin');
   assert.throws(() => api.workflows({skip: -1}), {code: 'invalid_filter'});
 });
+test('workflow name search encodes text safely and preserves server pagination', async () => {
+  const calls = [];
+  const api = createApi({storage: {getItem: () => '00000000-0000-4000-8000-000000000001'}, origin: 'https://n8n.example', fetchImpl: async (url, options) => {
+    calls.push({url, options});
+    return new Response(JSON.stringify({count: 101, data: [workflow]}), {headers: {'Content-Type': 'application/json'}});
+  }});
+  await api.workflows({name: '  Factures <test> & clients  ', skip: 100});
+  assert.deepEqual(JSON.parse(calls[0].url.searchParams.get('filter')), {name: 'Factures <test> & clients'});
+  assert.equal(calls[0].url.searchParams.get('skip'), '100');
+  assert.equal(calls[0].options.method, 'GET');
+  await api.workflows({name: '   '});
+  assert.equal(calls[1].url.searchParams.has('filter'), false);
+  for (const name of [null, 42, 'x'.repeat(201)]) assert.throws(() => api.workflows({name}), {code: 'invalid_filter'});
+  const pages = [];
+  const stub = {user: async () => ({id: 'u'}), workflows: async query => {pages.push(query); return {count: 101, data: [workflow]};}};
+  const page = await workflowPage(stub, config, 0, 'Factures');
+  await workflowPage(stub, config, page.nextSkip, 'Factures');
+  assert.deepEqual(pages, [{skip: 0, name: 'Factures'}, {skip: 1, name: 'Factures'}]);
+});
