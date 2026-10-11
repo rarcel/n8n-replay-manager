@@ -3,7 +3,7 @@ export class ReplayError extends Error {
   constructor(code, versions) { super(code); this.code = code; this.versions = versions; }
 }
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-export const replayTriggerTypes = Object.freeze(['n8n-nodes-base.webhook', 'n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.manualTrigger']);
+export const replayTriggerTypes = Object.freeze(['n8n-nodes-base.webhook', 'n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.manualTrigger', 'n8n-nodes-base.executeWorkflowTrigger']);
 export function validateIds(workflowId, executionId, config) {
   if (typeof workflowId !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(workflowId) ||
       typeof executionId !== 'string' || !/^[0-9]{1,30}$/.test(executionId)) throw new ReplayError('invalid_ids');

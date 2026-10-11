@@ -40,6 +40,28 @@ test('bulk submits sequentially with a local marker before each POST and never p
   assert.equal((await h.bulk.preview(h.selection)).runnable, false);
   await assert.rejects(h.bulk.submit(h.selection, true), {code: 'preview_required'});
 });
+test('bulk replays subworkflow trigger sources into the child only', async () => {
+  const h = harness();
+  const name = 'When Executed by Another Workflow';
+  const childConfig = {...config, workflows: {}};
+  h.workflow.nodes = [{name, type: 'n8n-nodes-base.executeWorkflowTrigger', typeVersion: 1.2, parameters: {inputSource: 'passthrough'}}];
+  for (const source of Object.values(h.sources)) {
+    source.mode = 'integrated';
+    source.data.parentExecution = {workflowId: 'parent', executionId: '99'};
+    source.data.resultData.runData = {[name]: source.data.resultData.runData.Webhook};
+  }
+  const bulk = createBulkManager({...h.options, config: childConfig});
+  const preview = await bulk.preview(h.selection);
+  assert.equal(preview.runnable, true); assert.equal(h.posts.length, 0);
+  const destinations = [];
+  h.api.run = async (id, payload) => {destinations.push(id); h.posts.push(payload); return {executionId: String(100 + h.posts.length)};};
+  const result = await bulk.submit(h.selection, true);
+  assert.equal(result.reason, 'complete');
+  assert.deepEqual(destinations, [workflowId, workflowId, workflowId]);
+  assert.deepEqual(h.posts.map(p => p.triggerToStartFrom.data.data.main[0][0].json.id), ['1', '2', '3']);
+  assert.ok(h.posts.every(p => p.triggerToStartFrom.name === name && Object.keys(p).length === 1));
+  assert.ok(!JSON.stringify(h.posts).includes('parentExecution'));
+});
 test('bulk aborts on source, workflow or account change before a subsequent POST', async () => {
   for (const kind of ['source', 'workflow', 'account']) {
     const h = harness(); await h.bulk.preview(h.selection);

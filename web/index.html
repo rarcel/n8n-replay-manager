@@ -26,7 +26,7 @@
             <label for="workflow-id">Workflow à rejouer</label><select id="workflow-id" name="workflow" required><option value="">Chargez les workflows accessibles</option></select>
             <button class="button secondary" id="workflow-load" type="button">Actualiser les workflows</button>
             <button class="button secondary" id="workflow-more" type="button" hidden>Plus de workflows</button>
-            <p class="field-help">Vos droits déterminent la sélection. La vérification accepte Webhook, Schedule Trigger et Manual Trigger avec données JSON compatibles.</p>
+            <p class="field-help">Vos droits déterminent la sélection. La vérification accepte Webhook, Schedule Trigger, Manual Trigger et When Executed by Another Workflow avec données JSON compatibles. Un sous-workflow est rejoué indépendamment, sans relancer son parent.</p>
             <label for="execution-id">Identifiant de l’exécution</label><input id="execution-id" name="execution" autocomplete="off" required maxlength="30" inputmode="numeric" spellcheck="false">
             <p class="field-help">Le rejeu réutilise la sortie JSON enregistrée du déclencheur.</p>
             <button class="button primary" id="preview-button" type="submit">Vérifier la source <span aria-hidden="true">→</span></button>

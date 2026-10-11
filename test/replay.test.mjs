@@ -90,6 +90,64 @@ test('discovers recorded schedule and manual trigger outputs in accessible workf
     assert.equal(h.calls.filter(c => typeof c === 'object').length, 1);
   }
 });
+function subworkflowHarness(parameters = {inputSource: 'passthrough'}) {
+  const h = harness();
+  const selected = {workflowId: 'child', executionId: ids.executionId};
+  const name = 'When Executed by Another Workflow';
+  h.f.workflow.id = selected.workflowId; h.f.execution.workflowId = selected.workflowId;
+  h.f.execution.mode = 'integrated';
+  h.f.workflow.nodes = [{name, type: 'n8n-nodes-base.executeWorkflowTrigger', typeVersion: 1.2, parameters}];
+  h.f.execution.workflowData.nodes = structuredClone(h.f.workflow.nodes);
+  const task = h.f.execution.data.resultData.runData.Webhook[0];
+  task.data.main = [[{json: {order: 42, nested: {values: [1, true, null]}}, pairedItem: {item: 7}}, {json: {order: 43}}]];
+  task.source = [{previousNode: 'Parent'}];
+  task.metadata = {parentExecution: {workflowId: 'parent', executionId: '99'}};
+  h.f.execution.data.parentExecution = {workflowId: 'parent', executionId: '99'};
+  h.f.execution.data.resultData.runData = {[name]: [task]};
+  return {...h, selected, name, task};
+}
+test('subworkflow trigger replays recorded JSON independently with exact ITaskData and explicit confirmation', async () => {
+  for (const parameters of [{inputSource: 'passthrough'}, {inputSource: 'workflowInputs', workflowInputs: {values: [{name: 'order', type: 'number'}]}}]) {
+    const h = subworkflowHarness(parameters); const before = structuredClone(h.f);
+    const {plan} = await h.manager.preview(h.selected);
+    assert.equal(plan.triggerType, 'n8n-nodes-base.executeWorkflowTrigger');
+    assert.equal(plan.itemCount, 2);
+    assert.deepEqual(plan.payload.triggerToStartFrom.data.data.main, [[{json: {order: 42, nested: {values: [1, true, null]}}}, {json: {order: 43}}]]);
+    assert.equal(plan.payload.triggerToStartFrom.data.main, undefined);
+    assert.deepEqual(plan.payload.triggerToStartFrom.data.source, []);
+    assert.deepEqual(Object.keys(plan.payload), ['triggerToStartFrom']);
+    assert.equal(plan.payload.triggerToStartFrom.data.metadata, undefined);
+    await assert.rejects(h.manager.submit(h.selected, false), {code: 'preview_required'});
+    assert.equal(h.calls.filter(c => typeof c === 'object').length, 0);
+    await h.manager.preview(h.selected);
+    await h.manager.submit(h.selected, true);
+    const posts = h.calls.filter(c => typeof c === 'object');
+    assert.equal(posts.length, 1); assert.equal(posts[0].workflowId, 'child');
+    assert.deepEqual(h.f, before);
+    assert.ok(![...h.store.map.values()].join('').includes('nested'));
+  }
+});
+test('subworkflow trigger refuses unsafe source data and incompatible current trigger', async () => {
+  for (const change of [
+    h => { h.task.data.main[0][0].binary = {}; },
+    h => { h.task.data.main[0][0].redaction = {redacted: true}; },
+    h => { h.f.execution.data.resultData.runData[h.name].push(structuredClone(h.task)); },
+    h => { h.f.workflow.nodes[0].disabled = true; },
+    h => { h.f.execution.workflowData.nodes[0].type = 'n8n-nodes-base.manualTrigger'; },
+    h => { h.f.workflow.nodes.push({name: 'Other', type: 'n8n-nodes-base.manualTrigger'}); h.f.execution.data.resultData.runData.Other = [h.task]; },
+  ]) {
+    const h = subworkflowHarness(); change(h);
+    await assert.rejects(h.manager.preview(h.selected));
+    assert.equal(h.calls.filter(c => typeof c === 'object').length, 0);
+  }
+});
+test('subworkflow trigger input schema or source change after preview blocks POST', async () => {
+  for (const change of [h => { h.f.workflow.nodes[0].parameters = {inputSource: 'workflowInputs', workflowInputs: {values: [{name: 'other', type: 'string'}]}}; }, h => { h.task.data.main[0][0].json.order = 99; }]) {
+    const h = subworkflowHarness(); await h.manager.preview(h.selected); change(h);
+    await assert.rejects(h.manager.submit(h.selected, true), {code: 'preview_changed'});
+    assert.equal(h.calls.filter(c => typeof c === 'object').length, 0);
+  }
+});
 test('discovery refuses ambiguous triggers, historical type changes and unsupported contexts', () => {
   const selected = {workflowId: 'discovered', executionId: ids.executionId};
   const base = () => { const f = fixtures(); f.workflow.id = selected.workflowId; f.execution.workflowId = selected.workflowId; return f; };
@@ -97,7 +155,7 @@ test('discovery refuses ambiguous triggers, historical type changes and unsuppor
     f => { f.workflow.nodes.push({name: 'Other', type: 'n8n-nodes-base.manualTrigger'}); f.execution.data.resultData.runData.Other = f.execution.data.resultData.runData.Webhook; },
     f => { f.execution.workflowData.nodes = [{name: 'Webhook', type: 'n8n-nodes-base.scheduleTrigger'}]; },
     f => { f.workflow.nodes[0].type = '@n8n/n8n-nodes-langchain.chatTrigger'; },
-    f => { f.workflow.nodes[0].type = 'n8n-nodes-base.executeWorkflowTrigger'; },
+    f => { f.workflow.nodes[0].type = 'n8n-nodes-base.errorTrigger'; },
   ]) { const f = base(); change(f); assert.throws(() => prepareReplay(f.execution, f.workflow, selected, config)); }
   const f = base(); assert.throws(() => prepareReplay(f.execution, f.workflow, selected, {...config, discoverWorkflows: false}), {code: 'workflow_not_configured'});
 });
