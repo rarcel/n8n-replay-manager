@@ -1,3 +1,4 @@
+import { journey, redirectToEditor } from './journey.mjs';
 import { config } from './config.mjs';
 import './theme.mjs';
 import { createApi, createManager } from './client.mjs';
@@ -43,7 +44,7 @@ const messages = {
   waiting_for_webhook: 'n8n attend un appel Webhook au lieu de démarrer immédiatement. Vérifiez cette attente dans n8n ; aucun nouvel envoi automatique.',
   network_error: 'La lecture n8n a échoué. Vérifiez la connexion puis réessayez la vérification.',
   upstream_error: 'n8n a refusé la lecture. Vérifiez votre session et la configuration de l’instance.',
-  invalid_response: 'La réponse n8n est incompatible. Vérifiez la configuration et la version de l’instance.',
+  invalid_response: 'La réponse n8n est incompatible. Vérifiez la configuration de l’instance.',
   acknowledgement_required: 'Confirmez d’abord la vérification des exécutions et le risque de doublon.',
   no_result: 'Aucun identifiant de résultat n’a été reçu. Consultez les exécutions dans n8n.',
   result_mismatch: 'Le résultat ne correspond pas au workflow ou au mode manuel attendu.',
@@ -59,10 +60,15 @@ const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('e
 const picker = createWorkflowPicker({input: $('workflow-picker'), dropdown: $('workflow-dropdown'), list: $('workflow-options'), status: $('workflow-picker-status'), more: $('workflow-more'), api, config,
   onClear() { $('workflow-id').value = ''; $('execution-id').value = ''; invalidate(); resetExplorer(); },
   onSelect(row) { $('workflow-id').value = row.id; $('execution-id').value = ''; invalidate(); resetExplorer(); action(searchExecutions).then(() => $('filter-status').focus()); },
-  onError(error) { say(messages[error.code] ?? 'Recherche indisponible.', true); }
+  onError(error) { redirectToEditor(error, window.location); say(messages[error.code] ?? 'Recherche indisponible.', true); }
 });
-function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
+function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); item.classList.toggle('complete', index < number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
+  const view = journey({workflowId: $('workflow-id').value, selected: explorer.selection().length, reviewing: !$('individual-review').hidden || $('bulk-results').children.length > 0});
+  $('execution-browser').hidden = !view.executionsVisible;
+  $('bulk-panel').hidden = !view.reviewVisible || !$('individual-review').hidden;
+  stage(view.step);
+  $('page-reset').disabled = busy;
   picker.setBusy(busy);
   for (const id of ['operation-mode', 'workflow-id', 'execution-id', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'filter-status', 'filter-after', 'filter-before', 'execution-search', 'execution-more', 'selection-clear', 'bulk-confirm']) $(id).disabled = busy;
   document.querySelectorAll('#execution-rows input, #execution-rows button').forEach(control => { control.disabled = busy || control.dataset.blocked === 'true'; });
@@ -77,7 +83,7 @@ function sync() {
   $('release-button').disabled = busy || !$('confirm-release').checked;
 }
 function say(text, error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
-function invalidate() { ready = false; manager.clearApproval(); $('confirm-effects').checked = false; $('preview-panel').hidden = true; $('individual-review').hidden = true; $('empty-state').hidden = false; $('result-panel').hidden = true; record = null; stage(1); sync(); }
+function invalidate() { ready = false; manager.clearApproval(); $('confirm-effects').checked = false; $('preview-panel').hidden = true; $('individual-review').hidden = true; $('empty-state').hidden = false; $('result-panel').hidden = true; record = null; sync(); }
 function showRecord(value) {
   record = value; $('result-panel').hidden = !value;
   if (!value) { sync(); return; }
@@ -96,8 +102,10 @@ async function action(callback) {
     ready = false; $('confirm-effects').checked = false;
     if (['session_changed', 'session_expired', 'open_editor_first'].includes(error.code)) {
       resetExplorer(); manager.clearApproval();
-      $('workflow-id').value = ''; $('execution-id').value = ''; picker.reset();
+      $('workflow-id').value = ''; $('execution-id').value = ''; picker.reset(); invalidate();
+      $('session-status').textContent = 'Session à vérifier';
     }
+    redirectToEditor(error, window.location);
     const versions = error.versions ? ` Version source : ${error.versions.source ?? 'absente'} ; version actuelle : ${error.versions.current ?? 'absente'}.` : '';
     say((messages[error.code] ?? 'L’opération a échoué. Vérifiez son état dans n8n avant toute nouvelle tentative.') + versions, true);
     try { showRecord(await manager.getRecord(ids())); } catch {}
@@ -115,7 +123,7 @@ $('source-form').addEventListener('submit', event => {
     $('item-count').textContent = String(result.plan.itemCount);
     $('target-version').textContent = result.plan.versionId;
     $('replay-button').textContent = result.plan.operation === 'retry' ? 'Lancer le retry natif' : 'Lancer le rejeu';
-    $('individual-review').hidden = false; $('empty-state').hidden = true; $('preview-panel').hidden = false; ready = true; stage(result.record ? 3 : 2);
+    $('individual-review').hidden = false; $('empty-state').hidden = true; $('preview-panel').hidden = false; ready = true;
     $('individual-review').scrollIntoView({block: 'start', behavior: 'smooth'});
     showRecord(result.record);
     say(result.record ? 'Source vérifiée. Une tentative existe déjà : consultez son état avant un nouvel envoi.' : 'Source compatible. Aucune exécution n’a été lancée.');
@@ -126,7 +134,7 @@ $('confirm-effects').addEventListener('change', sync); $('confirm-release').addE
 $('replay-button').addEventListener('click', () => action(async () => {
   say('Dernière vérification, puis envoi à n8n…');
   const result = await manager.submit(ids(), $('confirm-effects').checked);
-  ready = false; $('confirm-effects').checked = false; showRecord(result); stage(3);
+  ready = false; $('confirm-effects').checked = false; showRecord(result);
   say(`${result.operation === 'retry' ? 'Retry' : 'Rejeu'} soumis : exécution ${result.executionId}. Vérifiez maintenant le résultat et les effets attendus.`);
 }));
 $('check-button').addEventListener('click', () => action(async () => {
@@ -138,7 +146,7 @@ $('check-button').addEventListener('click', () => action(async () => {
 $('release-button').addEventListener('click', () => action(async () => {
   await manager.release(ids(), $('confirm-release').checked); invalidate(); say('Blocage local levé explicitement. Vérifiez à nouveau la source avant de rejouer.');
 }));
-stage(1); sync();
+sync();
 
 function clearBulk() {
   bulk.clearApproval(); bulkReady = false; $('bulk-confirm').checked = false;
@@ -236,15 +244,18 @@ function renderPage(page) {
   $('execution-list-status').textContent = page.rows.length ? `${page.rows.length} exécution${page.rows.length > 1 ? 's' : ''} sur cette page · ${total}.` : 'Aucune exécution sur cette page pour ces filtres.';
   sync();
 }
-$('operation-mode').addEventListener('change', () => {
-  invalidate(); resetExplorer();
+function syncOperation() {
   const retry = operation() === 'retry';
   if (retry) $('filter-status').value = 'error';
   $('operation-help').textContent = retry ? 'Retry : reprend l’état enregistré de l’échec avec le workflow actuel. Un node peut répéter ses effets ; le contexte enregistré du sous-workflow peut être conservé. La vérification détermine si la reprise est possible.' : 'Rejeu : repart du déclencheur avec ses sorties enregistrées, dans le workflow actuel.';
   $('bulk-confirm-label').textContent = `Je confirme le ${retry ? 'retry natif' : 'rejeu'} de toutes les sources listées dans le workflow actuel affiché et j’accepte les effets possibles.`;
   $('bulk-operation-description').textContent = retry ? 'n8n reprend sa pile enregistrée avec la définition actuelle. Le node en échec peut avoir déjà produit des effets qui seront répétés. Aucun retry automatique des envois du manager.' : 'Les sorties enregistrées seront rejouées dans la définition et les credentials actuels. Les envois sont séquentiels ; un nouvel ID signifie soumis, sa réussite reste à contrôler.';
   $('bulk-run').textContent = retry ? 'Lancer les retries' : 'Lancer le lot';
-  sync(); if (ids().workflowId) action(searchExecutions);
+  sync();
+}
+$('operation-mode').addEventListener('change', () => {
+  invalidate(); resetExplorer(); syncOperation();
+  if (ids().workflowId) action(searchExecutions);
 });
 for (const id of ['filter-status', 'filter-after', 'filter-before']) $(id).addEventListener('input', () => { invalidate(); resetExplorer(); });
 async function searchExecutions() {
@@ -262,4 +273,14 @@ $('selection-clear').addEventListener('click', () => {
   explorer.clearSelection(); invalidate(); syncSelection();
   document.querySelectorAll('#execution-rows input').forEach(checkbox => { checkbox.checked = false; });
 });
-action(async () => { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; await picker.search(); });
+async function loadSession() { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; await picker.search(); }
+$('page-reset').addEventListener('click', () => action(async () => {
+  picker.reset(); $('workflow-id').value = ''; $('execution-id').value = '';
+  $('execution-filters').reset(); invalidate(); resetExplorer(); syncOperation();
+  for (const id of ['workflow-name', 'source-id', 'trigger-name', 'item-count', 'target-version', 'result-text']) $(id).textContent = '';
+  $('result-link').removeAttribute('href');
+  document.querySelectorAll('#result-panel details').forEach(details => { details.open = false; });
+  say('Nouvelle sélection. Les protections des tentatives précédentes restent conservées.');
+  await loadSession();
+}).then(() => $('workflow-picker').focus()));
+action(loadSession);

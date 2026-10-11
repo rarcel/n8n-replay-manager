@@ -13,12 +13,12 @@
       <a class="nav active" href="/replay-manager/" aria-current="page">↻ <span>Rejouer une exécution</span></a>
       <a class="nav" href="/" target="_blank" rel="noopener">↗ <span>Ouvrir n8n</span></a>
       <div class="rail-note"><span class="small-dot"></span> Session n8n<br><p>Vos droits habituels s’appliquent à chaque opération.</p></div>
-      <div class="rail-footer">POC · n8n 2.42.4<br><span>Nouvelle exécution en mode manuel</span></div>
+      <div class="rail-footer">Replay Manager<br><span>Rejeu et retry</span></div>
     </aside>
     <main>
       <header class="topbar"><span>Exécutions <span class="breadcrumb-separator">/</span> <strong>Rejeu</strong></span><span class="session" id="session-status">Session à vérifier</span></header>
-      <section class="heading"><div><h1>Rejouer une exécution</h1><p>Vérifiez les données d’une exécution, puis lancez un nouveau passage dans le workflow.</p></div><span class="mode-badge">Exécution manuelle</span></section>
-      <ol class="steps"><li class="current"><span>1</span>Choisir la source</li><li><span>2</span>Vérifier</li><li><span>3</span>Rejouer et contrôler</li></ol>
+      <section class="heading"><div><h1>Rejouer une exécution</h1><p>Vérifiez les données d’une exécution, puis lancez un nouveau passage dans le workflow.</p></div><button id="page-reset" class="button secondary" type="button">Réinitialiser la page</button></section>
+      <ol class="steps"><li class="current"><span>1</span>Choisir le workflow</li><li><span>2</span>Choisir les exécutions</li><li><span>3</span>Vérifier et relancer</li></ol>
       <div class="layout">
         <section class="card source-card" aria-labelledby="source-title">
           <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Choisir le workflow</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
@@ -36,8 +36,8 @@
           <div class="read-only-note"><span aria-hidden="true">◇</span> La sélection et les filtres ne lancent aucune exécution.</div>
         </section>
       </div>
-      <section class="card execution-browser" id="execution-browser" aria-labelledby="executions-title">
-        <h2 id="executions-title">Choisir les exécutions à relancer</h2>
+      <section class="card execution-browser" id="execution-browser" hidden aria-labelledby="executions-title">
+        <div class="card-heading"><span class="card-number">02</span><div><h2 id="executions-title">Choisir les exécutions à relancer</h2></div></div>
         <p>Filtrez les sources du workflow choisi. Les dates portent sur le démarrage, dans le fuseau horaire de votre navigateur, avec bornes incluses.</p>
         <form id="execution-filters" class="filters">
           <div><label for="operation-mode">Action à effectuer</label><select id="operation-mode"><option value="replay">Rejeu depuis le déclencheur</option><option value="retry">Retry natif — reprendre l’échec</option></select></div>
@@ -53,7 +53,7 @@
         <p class="field-help">Sélection explicite, conservée entre les pages. La compatibilité des données sera vérifiée avant tout rejeu.</p>
       </section>
         <section class="card review-card" id="individual-review" hidden aria-labelledby="review-title">
-          <div class="card-heading"><span class="card-number">02</span><div><h2 id="review-title">Vérifier une source</h2><p>Un dernier regard sur ce qui va être lancé.</p></div></div>
+          <div class="card-heading"><span class="card-number">03</span><div><h2 id="review-title">Vérifier une source</h2><p>Un dernier regard sur ce qui va être lancé.</p></div></div>
           <div id="empty-state" class="empty-state"><div class="empty-icon" aria-hidden="true">↻</div><h3>Commencez par une vérification</h3><p>Le workflow, le déclencheur et le nombre d’éléments apparaîtront ici.</p></div>
           <div id="preview-panel" hidden>
             <div class="verified-badge">✓ Source vérifiée</div>
@@ -65,8 +65,8 @@
             <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>
           </div>
         </section>
-      <section class="card" aria-labelledby="bulk-title">
-        <h2 id="bulk-title">Préparer une sélection en lot</h2>
+      <section class="card" id="bulk-panel" hidden aria-labelledby="bulk-title">
+        <div class="card-heading"><span class="card-number">03</span><div><h2 id="bulk-title">Vérifier et relancer la sélection</h2></div></div>
         <p>Vérifiez les sources cochées dans la liste ci-dessus pour le workflow choisi.</p>
         <label for="bulk-ids">Exécutions sélectionnées</label>
         <textarea id="bulk-ids" rows="3" readonly aria-label="IDs des exécutions sélectionnées"></textarea>

@@ -49,3 +49,5 @@ Préparation bulk ajoutée : saisie explicite de 1 à 50 IDs du même workflow, 
 Exécuter node scripts/validate.mjs depuis la racine : 23 tests à la migration. Docker et Traefik réels non testés ici. Captures précédentes illustrant le thème, pas le dernier libellé de confirmation.
 
 Modifier directement ce dépôt, consulter les différences et produire des commits explicites. Ne plus échanger de ZIP pour les itérations normales. Aucun remote configuré et aucun secret intégré. Ne pas pousser, publier, déployer ou rejouer réellement sans demande applicable.
+
+Parcours progressif : workflow (01), sélection (02), vérification/lancement/suivi (03). Reset efface le parcours sans supprimer les marqueurs locaux. Redirection vers / sur open_editor_first ou session_expired, aucune connexion automatisée. Version logicielle absente de l’UI, version workflow cible conservée. 59 tests factices passent ; validation visuelle/authentification réelle restante.

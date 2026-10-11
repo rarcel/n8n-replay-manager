@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Parcours progressif, indicateur synchronisé, réinitialisation complète de la sélection/filtres/confirmations et redirection vers l’éditeur sur contexte absent ou 401 ajoutés. Version du logiciel retirée de l’interface, version de la destination workflow conservée. 59 tests factices passent, dont transitions, absence de redirection sur refus de droits/réseau et intégration du bouton reset avec marqueurs et browser-id préservés. Aucun POST réel ni validation visuelle ou authentification réelle.
+
 Retry natif avec workflow actuel ajouté en individuel/lot, source error récupérable uniquement. Contrat officiel 2.42.4 examiné. 56 tests factices passent : preview sans POST, confirmation, mode/digest/source/droits/version, pins/binary/redaction/état invalide, stockage/verrous, réponse perdue/provenance incohérente, séquence et arrêt sur retry non réussi. Contrôle HTTP local factice : deux POST retry pour 101/103, résultats 1001/1002, résultat succès relu et doublons bloqués, aucun rejeu réel. UI non validée visuellement ; authentification et effets du retry réel à valider sur instance autorisée.
 
 Colonne Action et boutons Vérifier cette source supprimés de la liste. Sélection par cases puis Vérifier la sélection, y compris pour une seule source. Motifs des cases indisponibles conservés dans title/aria-label ; examen individuel des tentatives bloquées conservé. 49 tests factices passent ; aucun rejeu réel.
