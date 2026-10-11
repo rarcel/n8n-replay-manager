@@ -4,7 +4,7 @@ Cette version remplace le POC de passerelle de service. Le rejeu se fait exclusi
 
 L'interface reprend les surfaces neutres, la police Inter, les boutons orange/corail et les dimensions compactes de n8n 2.42.4. Elle lit la préférence `N8N_THEME` (`light`, `dark`, `system`) du même navigateur sans la modifier, et suit les changements de thème de l'éditeur. C'est une interface distincte : elle ne charge pas les bundles privés n8n et les personnalisations de thème propres à votre installation ne sont pas automatiquement reprises.
 
-**Cible de déploiement retenue : Traefik.** Cette révision porte sur l'intégration visuelle ; aucune configuration Traefik de production n'est encore ajoutée ni déployée. Les exemples nginx ci-dessous restent des illustrations/sandbox. L'étape de déploiement sera adaptée à vos routers, entrypoints et réseau Docker existants.
+**Cible de déploiement retenue : Traefik.** Un modèle indépendant de serveur statique et de labels est préparé dans `compose.traefik.yaml` et [deploy/TRAEFIK.md](deploy/TRAEFIK.md). Il reste à adapter à vos routers, entrypoints, certificats et réseau existants. Aucun déploiement n'est effectué. Le Dockerfile et Compose à la racine restent une sandbox nginx distincte.
 
 Le Dockerfile construit uniquement un serveur nginx non root pour l'interface et le reverse proxy. Compose utilise directement `docker.n8n.io/n8nio/n8n:2.42.4`, sans dérivation. Les routes éditeur utilisées sont internes ; leur schéma et leur comportement doivent être validés sur l'instance cible. Le POC ne transforme pas ces routes en API officiellement supportée.
 

@@ -1,0 +1,7 @@
+FROM nginx:stable-alpine
+COPY deploy/nginx-static.conf /etc/nginx/nginx.conf
+COPY web /usr/share/nginx/html/replay-manager
+USER nginx
+EXPOSE 8080
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]

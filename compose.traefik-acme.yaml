@@ -1,0 +1,5 @@
+# Optional overlay only when the existing installation uses this certificate resolver.
+services:
+  replay-manager:
+    labels:
+      traefik.http.routers.replay-manager.tls.certresolver: "${TRAEFIK_CERT_RESOLVER:?Set the existing certificate resolver}"

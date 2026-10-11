@@ -1,0 +1,25 @@
+# Independent stack: the existing n8n/Traefik services are not defined or changed.
+services:
+  replay-manager:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.traefik
+    expose: ["8080"]
+    read_only: true
+    tmpfs: ["/tmp:uid=101,gid=101,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [traefik]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "${TRAEFIK_NETWORK:?Set the existing Traefik Docker network}"
+      traefik.http.routers.replay-manager.rule: 'Host(`${N8N_PUBLIC_HOST:?Set the exact existing n8n host}`) && (Path(`/replay-manager`) || PathPrefix(`/replay-manager/`))'
+      traefik.http.routers.replay-manager.entrypoints: "${TRAEFIK_HTTPS_ENTRYPOINT:?Set the existing HTTPS entrypoint}"
+      traefik.http.routers.replay-manager.priority: "${REPLAY_ROUTER_PRIORITY:?Set a priority greater than the existing n8n router}"
+      traefik.http.routers.replay-manager.tls: "true"
+      traefik.http.routers.replay-manager.service: "replay-manager"
+      traefik.http.services.replay-manager.loadbalancer.server.port: "8080"
+networks:
+  traefik:
+    external: true
+    name: "${TRAEFIK_NETWORK:?Set the existing Traefik Docker network}"
