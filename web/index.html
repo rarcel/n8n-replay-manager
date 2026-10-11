@@ -23,7 +23,10 @@
         <section class="card source-card" aria-labelledby="source-title">
           <div class="card-heading"><span class="card-number">01</span><div><h2 id="source-title">Exécution source</h2><p>Les données sont lues avec votre session n8n.</p></div></div>
           <form id="source-form">
-            <label for="workflow-id">Identifiant du workflow</label><input id="workflow-id" name="workflow" autocomplete="off" required maxlength="80" spellcheck="false">
+            <label for="workflow-id">Workflow à rejouer</label><select id="workflow-id" name="workflow" required><option value="">Chargez les workflows accessibles</option></select>
+            <button class="button secondary" id="workflow-load" type="button">Actualiser les workflows</button>
+            <button class="button secondary" id="workflow-more" type="button" hidden>Plus de workflows</button>
+            <p class="field-help">Seuls les workflows configurés pour le rejeu et autorisés par vos droits sont sélectionnables.</p>
             <label for="execution-id">Identifiant de l’exécution</label><input id="execution-id" name="execution" autocomplete="off" required maxlength="30" inputmode="numeric" spellcheck="false">
             <p class="field-help">Le rejeu réutilise les données JSON du Webhook enregistré.</p>
             <button class="button primary" id="preview-button" type="submit">Vérifier la source <span aria-hidden="true">→</span></button>

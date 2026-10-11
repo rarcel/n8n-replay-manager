@@ -2,8 +2,10 @@ import { config } from './config.mjs';
 import './theme.mjs';
 import { createApi, createManager } from './client.mjs';
 import { parseSelection, prepareSelection } from './bulk.mjs';
+import { workflowPage } from './catalog.mjs';
 const $ = id => document.getElementById(id);
 const messages = {
+  invalid_filter: 'Les filtres ou la pagination sont invalides.',
   bulk_selection_invalid: 'Sélectionnez de 1 à 50 IDs valides pour un même workflow.',
   bulk_duplicate: 'La sélection contient un ID répété. Retirez le doublon.',
   open_editor_first: 'Ouvrez n8n et connectez-vous sur ce même domaine, puis revenez ici.',
@@ -45,10 +47,11 @@ let busy = false, ready = false, record = null;
 const api = createApi({storage: localStorage});
 const manager = createManager({api, storage: localStorage, locks: navigator.locks, config});
 const ids = () => ({workflowId: $('workflow-id').value.trim(), executionId: $('execution-id').value.trim()});
-$('workflow-id').value = config.defaultWorkflowId; $('execution-id').value = config.defaultExecutionId;
+$('execution-id').value = config.defaultExecutionId;
+let workflowSkip = null, catalogUser = null;
 function stage(number) { document.querySelectorAll('.steps li').forEach((item, index) => { item.classList.toggle('current', index === number - 1); if (index === number - 1) item.setAttribute('aria-current', 'step'); else item.removeAttribute('aria-current'); }); }
 function sync() {
-  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview']) $(id).disabled = busy;
+  for (const id of ['workflow-id', 'execution-id', 'preview-button', 'check-button', 'confirm-effects', 'confirm-release', 'bulk-ids', 'bulk-preview', 'workflow-load', 'workflow-more']) $(id).disabled = busy;
   $('replay-button').disabled = busy || !ready || !!record || !$('confirm-effects').checked;
   $('release-button').disabled = busy || !$('confirm-release').checked;
 }
@@ -130,4 +133,31 @@ $('bulk-preview').addEventListener('click', () => action(async () => {
     say('Sélection vérifiée. Les sources bloquées restent exclues ; une nouvelle validation sera nécessaire avant tout envoi.');
   } catch (error) { clearBulk(); throw error; }
 }));
-action(async () => { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; say('Session n8n disponible. Choisissez une source et vérifiez-la.'); });
+async function loadWorkflows(more = false) {
+  const previous = $('workflow-id').value;
+  if (!more) {
+    invalidate(); clearBulk(); $('bulk-ids').value = '';
+    $('workflow-id').replaceChildren(new Option('Choisir un workflow', ''));
+    workflowSkip = null; catalogUser = null; $('workflow-more').hidden = true;
+  }
+  const page = await workflowPage(api, config, more ? workflowSkip : 0);
+  if (more && catalogUser !== page.userId) {
+    $('workflow-id').replaceChildren(new Option('Actualisez les workflows : compte modifié', ''));
+    workflowSkip = null; $('workflow-more').hidden = true; invalidate(); clearBulk();
+    throw Object.assign(new Error(), {code: 'session_changed'});
+  }
+  catalogUser = page.userId;
+  for (const workflow of page.workflows) {
+    if ([...$('workflow-id').options].some(option => option.value === workflow.id)) continue;
+    const option = new Option(`${workflow.name} · ${workflow.id}${workflow.reason ? ` · ${workflow.reason}` : ''}`, workflow.id);
+    option.disabled = !workflow.selectable; $('workflow-id').append(option);
+  }
+  const wanted = previous || config.defaultWorkflowId;
+  if ([...$('workflow-id').options].some(option => option.value === wanted && !option.disabled)) $('workflow-id').value = wanted;
+  workflowSkip = page.nextSkip; $('workflow-more').hidden = workflowSkip === null;
+  say('Workflows accessibles chargés. Choisissez le workflow à rejouer.');
+}
+$('workflow-load').addEventListener('click', () => action(() => loadWorkflows()));
+$('workflow-more').addEventListener('click', () => action(() => loadWorkflows(true)));
+$('workflow-id').addEventListener('change', () => { invalidate(); clearBulk(); $('bulk-ids').value = ''; });
+action(async () => { const user = await manager.session(); $('session-status').textContent = `Connecté · ${user.firstName || 'Utilisateur n8n'}`; await loadWorkflows(); });

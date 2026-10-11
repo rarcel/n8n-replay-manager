@@ -26,6 +26,7 @@ Seuls ces appels sont effectués :
 | Opération | Appel |
 |---|---|
 | Vérifier le compte courant | GET `/rest/login` |
+| Choisir un workflow accessible | GET `/rest/workflows?take=100&skip=…&includeScopes=true` |
 | Lire source/résultat | GET `/rest/executions/{id}` |
 | Lire le workflow et ses scopes | GET `/rest/workflows/{id}` |
 | Soumettre après confirmation | POST `/rest/workflows/{id}/run` |
@@ -82,7 +83,7 @@ Politique retenue pour le futur envoi séquentiel : arrêter au premier refus ou
 ### Rejeu individuel
 
 1. Se connecter à l'éditeur n8n sur la même origine.
-2. Ouvrir `/replay-manager/`, saisir les IDs puis cliquer **Vérifier la source**. Cette étape est uniquement en lecture.
+2. Ouvrir `/replay-manager/`, choisir le workflow par son nom dans la liste accessible, saisir l'ID source puis cliquer **Vérifier la source**. Le bouton **Plus de workflows** charge la page suivante. Les workflows hors configuration, archivés ou sans droits de lecture/exécution sont affichés mais non sélectionnables. Cette étape est uniquement en lecture.
 3. Examiner le workflow, le Webhook et le nombre d'éléments ; confirmer les effets possibles.
 4. Cliquer **Lancer le rejeu**. Session, source et workflow sont relus et le plan est comparé au plan approuvé. Une vérification expire après cinq minutes.
 5. Un nouvel ID signifie seulement **soumis**. Cliquer **Vérifier le résultat**, puis examiner l'exécution et les effets métier dans n8n.

@@ -20,6 +20,8 @@ Préparer la sélection bulk des exécutions d'un même workflow : pagination se
 
 ## État local
 
+Sélecteur de workflows accessible ajouté avec noms et IDs, pagination take/skip et scopes n8n. Seuls les workflows configurés, non archivés et avec droits read/execute sont sélectionnables. 29 tests factices passent ; aucun changement de configuration de rejeu.
+
 Préparation bulk ajoutée : saisie explicite de 1 à 50 IDs du même workflow, refus des doublons, vérification séquentielle individuelle et récapitulatif de métadonnées, sans approbation conservée ni POST bulk. 26 tests factices passent. La pagination attend la vérification du contrat détaillé de liste n8n 2.42.4 (sources détaillées indisponibles pendant cette itération). Confirmation globale, envoi séquentiel, arrêt et suivi individuel restent à implémenter. Politique future : arrêt au premier refus ou envoi ambigu, sans retry automatique ; voir README. Panneau non testé visuellement ni sur instance réelle.
 
 Exécuter node scripts/validate.mjs depuis la racine : 23 tests à la migration. Docker et Traefik réels non testés ici. Captures précédentes illustrant le thème, pas le dernier libellé de confirmation.

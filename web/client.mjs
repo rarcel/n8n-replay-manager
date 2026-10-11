@@ -7,14 +7,17 @@ export function readBrowserId(storage) {
   return id;
 }
 export function createApi({storage, fetchImpl = fetch, origin = location.origin}) {
-  async function request(path, payload) {
-    if (!/^\/rest\/(login|executions\/[0-9]{1,30}|workflows\/[A-Za-z0-9_-]{1,80}(\/run)?)$/.test(path)) throw new ReplayError('invalid_path');
+  async function request(path, payload, query, fullEnvelope = false) {
+    if (!/^\/rest\/(login|executions|executions\/[0-9]{1,30}|workflows|workflows\/[A-Za-z0-9_-]{1,80}(\/run)?)$/.test(path)) throw new ReplayError('invalid_path');
     const post = payload !== undefined;
+    if (post && !/^\/rest\/workflows\/[A-Za-z0-9_-]{1,80}\/run$/.test(path)) throw new ReplayError('invalid_path');
+    const url = new URL(path, origin);
+    if (query) url.search = query.toString();
     const headers = {Accept: 'application/json', 'browser-id': readBrowserId(storage)};
     if (post) headers['Content-Type'] = 'application/json';
     let response;
     try {
-      response = await fetchImpl(new URL(path, origin), {method: post ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store', headers,
+      response = await fetchImpl(url, {method: post ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store', headers,
         signal: AbortSignal.timeout(post ? 60000 : 20000), ...(post ? {body: JSON.stringify(payload)} : {})});
     } catch { throw new ReplayError(post ? 'outcome_unknown' : 'network_error'); }
     if (!response.ok) {
@@ -33,13 +36,17 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
       const envelope = JSON.parse(new TextDecoder().decode(bytes));
       if (!envelope || !Object.hasOwn(envelope, 'data') || envelope.data === null || typeof envelope.data !== 'object') throw new Error();
-      return envelope.data;
+      return fullEnvelope ? envelope : envelope.data;
     } catch { throw new ReplayError(post ? 'outcome_unknown' : 'invalid_response'); }
   }
   return {
     user: () => request('/rest/login'), // GET only; no login credentials collected.
     execution: id => request(`/rest/executions/${id}`),
     workflow: id => request(`/rest/workflows/${id}`),
+    workflows: ({skip = 0} = {}) => {
+      if (!Number.isSafeInteger(skip) || skip < 0) throw new ReplayError('invalid_filter');
+      return request('/rest/workflows', undefined, new URLSearchParams({take: '100', skip: String(skip), includeScopes: 'true'}), true);
+    },
     run: (id, payload) => request(`/rest/workflows/${id}/run`, payload),
   };
 }

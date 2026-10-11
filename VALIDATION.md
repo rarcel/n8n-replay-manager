@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+- Sélecteur de workflows : contrat public du contrôleur et middleware de liste 2.42.4 examiné (`take`, `skip`, `includeScopes`, enveloppe `{data, count}`). Catalogue accessible avec garde-fou de configuration/scopes/archive et contrôle de compte. 29 tests factices réussis via `node scripts/validate.mjs`. Aucune connexion à l'instance réelle.
+
 - Préparation bulk en lecture seule : 26 tests Node réussis, 0 échec via `node scripts/validate.mjs`. Nouveaux tests : IDs uniques et limite de 50, un seul workflow, résultats individuels dont données masquées, absence de POST/persistance de payloads, arrêt sur changement de compte ou de définition actuelle. Aucun lot réel envoyé. Le nouveau panneau n'a pas été validé visuellement dans un navigateur ni sur une instance n8n réelle.
 
 - Sources publiques au tag n8n@2.42.4 consultées : identifiant navigateur, headers REST, compte courant, scopes, lecture et redaction des exécutions, sérialisation flatted, DTO et moteur de rejeu.
