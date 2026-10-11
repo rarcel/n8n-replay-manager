@@ -9,6 +9,48 @@ export function validateIds(workflowId, executionId, config) {
       typeof executionId !== 'string' || !/^[0-9]{1,30}$/.test(executionId)) throw new ReplayError('invalid_ids');
   if (!config.discoverWorkflows && !Object.hasOwn(config.workflows, workflowId)) throw new ReplayError('workflow_not_configured');
 }
+export function operationFor(ids) {
+  const operation = ids.operation ?? 'replay';
+  if (!['replay', 'retry'].includes(operation)) throw new ReplayError('invalid_operation');
+  return operation;
+}
+export function prepareRetry(rawExecution, workflow, ids, config) {
+  validateIds(ids.workflowId, ids.executionId, config);
+  const execution = normalizeExecution(rawExecution);
+  if (String(execution.id) !== ids.executionId || execution.workflowId !== ids.workflowId || workflow?.id !== ids.workflowId) throw new ReplayError('workflow_mismatch');
+  if (execution.status !== 'error' || execution.finished !== false || !execution.stoppedAt || execution.waitTill) throw new ReplayError('retry_unavailable');
+  if (execution.workflowData?.id !== ids.workflowId) throw new ReplayError('retry_unavailable');
+  if (!Array.isArray(workflow.scopes) || !['workflow:read', 'workflow:execute'].every(scope => workflow.scopes.includes(scope))) throw new ReplayError('workflow_scope_missing');
+  if (typeof workflow.versionId !== 'string' || !workflow.versionId) throw new ReplayError('workflow_version_unavailable');
+  if (Object.keys(workflow.pinData ?? {}).length || Object.keys(execution.data.resultData.pinData ?? {}).length) throw new ReplayError('pinned_data');
+  // The server retries its saved state; never send that state or a workflow definition.
+  const stack = execution.data.executionData?.nodeExecutionStack;
+  if (!Array.isArray(stack) || !stack.length || stack.length > 1000 || !object(execution.data.resultData.runData)) throw new ReplayError('retry_unavailable');
+  const visit = (value, ancestors = new Set()) => {
+    if (!value || typeof value !== 'object') return;
+    if (ancestors.has(value)) throw new ReplayError('retry_unavailable');
+    if (Object.hasOwn(value, 'binary')) throw new ReplayError('unsupported_data');
+    if (value.redaction?.redacted || value.redactionInfo?.isRedacted || value.redactedError) throw new ReplayError('redacted_data');
+    ancestors.add(value); for (const child of Object.values(value)) visit(child, ancestors); ancestors.delete(value);
+  };
+  visit(execution.data);
+  if (Object.values(execution.data.resultData.runData).some(runs => !Array.isArray(runs) || runs.length > 1)) throw new ReplayError('retry_unavailable');
+  let itemCount = 0;
+  for (const entry of stack) {
+    const current = workflow.nodes?.find(node => node.name === entry?.node?.name);
+    if (!current || current.disabled || current.type !== entry.node.type) throw new ReplayError('retry_node_changed');
+    if (!Array.isArray(entry.data?.main) || entry.data.main.some(output => output !== null && (!Array.isArray(output) || output.some(item => !object(item?.json))))) throw new ReplayError('retry_unavailable');
+    itemCount += entry.data.main.reduce((sum, output) => sum + (output?.length ?? 0), 0);
+  }
+  if (itemCount > 1000) throw new ReplayError('unsupported_data');
+  const workflowSnapshot = JSON.parse(JSON.stringify({nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings}));
+  // Full saved state participates in revalidation, but only its digest is retained in approvals.
+  const sourceSnapshot = JSON.parse(JSON.stringify({data: execution.data, workflowData: execution.workflowData, status: execution.status, finished: execution.finished}));
+  if (new TextEncoder().encode(JSON.stringify(sourceSnapshot)).length > 8 * 1024 * 1024) throw new ReplayError('data_too_large');
+  return {workflowId: ids.workflowId, sourceExecutionId: ids.executionId, workflowName: String(workflow.name ?? workflow.id), versionId: workflow.versionId,
+    replayTarget: 'current', operation: 'retry', workflowSnapshot, sourceSnapshot, trigger: stack.map(entry => entry.node.name).join(', '),
+    itemCount, payload: {loadWorkflow: true}};
+}
 export function normalizeExecution(execution) {
   if (!object(execution) || execution.dataTooLargeToDisplay) throw new ReplayError('execution_unavailable');
   let data = execution.data;
@@ -64,7 +106,7 @@ export function prepareReplay(rawExecution, workflow, ids, config) {
   return {workflowId: ids.workflowId, sourceExecutionId: ids.executionId, workflowName: String(workflow.name ?? workflow.id), versionId: currentVersion, sourceVersionId: versions.source, replayTarget: 'current', workflowSnapshot, trigger, triggerType: node.type, itemCount: items.length, payload};
 }
 export async function digestPlan(plan, subtle = globalThis.crypto.subtle) {
-  const text = JSON.stringify([plan.workflowId, plan.sourceExecutionId, plan.versionId, plan.replayTarget, plan.workflowSnapshot, plan.payload]);
+  const text = JSON.stringify([plan.workflowId, plan.sourceExecutionId, plan.versionId, plan.replayTarget, plan.workflowSnapshot, plan.payload, plan.operation ?? 'replay', plan.sourceSnapshot]);
   const bytes = await subtle.digest('SHA-256', new TextEncoder().encode(text));
   return [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
 }

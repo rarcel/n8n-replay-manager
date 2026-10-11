@@ -1,4 +1,4 @@
-import { ReplayError, prepareReplay, digestPlan, validateIds } from './model.mjs';
+import { ReplayError, prepareReplay, prepareRetry, operationFor, digestPlan, validateIds } from './model.mjs';
 import { executionQuery } from './explorer.mjs';
 export function readBrowserId(storage) {
   let id;
@@ -9,9 +9,9 @@ export function readBrowserId(storage) {
 }
 export function createApi({storage, fetchImpl = fetch, origin = location.origin}) {
   async function request(path, payload, query, fullEnvelope = false) {
-    if (!/^\/rest\/(login|executions|executions\/[0-9]{1,30}|workflows|workflows\/[A-Za-z0-9_-]{1,80}(\/run)?)$/.test(path)) throw new ReplayError('invalid_path');
+    if (!/^\/rest\/(login|executions|executions\/[0-9]{1,30}(\/retry)?|workflows|workflows\/[A-Za-z0-9_-]{1,80}(\/run)?)$/.test(path)) throw new ReplayError('invalid_path');
     const post = payload !== undefined;
-    if (post && !/^\/rest\/workflows\/[A-Za-z0-9_-]{1,80}\/run$/.test(path)) throw new ReplayError('invalid_path');
+    if (post && !/^\/rest\/(workflows\/[A-Za-z0-9_-]{1,80}\/run|executions\/[0-9]{1,30}\/retry)$/.test(path)) throw new ReplayError('invalid_path');
     const url = new URL(path, origin);
     if (query) url.search = query.toString();
     const headers = {Accept: 'application/json', 'browser-id': readBrowserId(storage)};
@@ -52,6 +52,7 @@ export function createApi({storage, fetchImpl = fetch, origin = location.origin}
       return request('/rest/workflows', undefined, query, true);
     },
     run: (id, payload) => request(`/rest/workflows/${id}/run`, payload),
+    retry: id => request(`/rest/executions/${id}/retry`, {loadWorkflow: true}),
   };
 }
 const keyFor = (userId, ids) => 'replay-manager:v2:' + JSON.stringify([userId, ids.workflowId, ids.executionId]);
@@ -60,7 +61,7 @@ export function createManager({api, storage, locks, config, digest = digestPlan,
   const read = key => { try { const raw = storage.getItem(key); return raw ? JSON.parse(raw) : null; } catch { throw new ReplayError('storage_unavailable'); } };
   const write = (key, value) => { try { storage.setItem(key, JSON.stringify(value)); } catch { throw new ReplayError('storage_unavailable'); } };
   const identity = async () => { const user = await api.user(); if (typeof user?.id !== 'string' || !user.id) throw new ReplayError('invalid_response'); return user; };
-  const load = async ids => { validateIds(ids.workflowId, ids.executionId, config); return prepareReplay(await api.execution(ids.executionId), await api.workflow(ids.workflowId), ids, config); };
+  const load = async ids => { validateIds(ids.workflowId, ids.executionId, config); const prepare = operationFor(ids) === 'retry' ? prepareRetry : prepareReplay; return prepare(await api.execution(ids.executionId), await api.workflow(ids.workflowId), ids, config); };
   async function locked(user, ids, callback) {
     if (!locks?.request) throw new ReplayError('locks_unavailable');
     return locks.request(keyFor(user.id, ids), {mode: 'exclusive', ifAvailable: true}, async lock => {
@@ -92,14 +93,23 @@ export function createManager({api, storage, locks, config, digest = digestPlan,
         if (await digest(fresh) !== approval.digest) throw new ReplayError('preview_changed');
         if ((await identity()).id !== user.id) throw new ReplayError('session_changed');
         // Durable browser-local marker precedes POST; no Cookie/API key is persisted.
-        const record = {userId: user.id, workflowId: ids.workflowId, sourceExecutionId: ids.executionId, time: new Date().toISOString(), status: 'pending'};
+        const record = {userId: user.id, workflowId: ids.workflowId, sourceExecutionId: ids.executionId, operation: operationFor(ids), time: new Date().toISOString(), status: 'pending'};
         write(key, record);
         let result;
-        try { result = await api.run(ids.workflowId, fresh.payload); }
+        let resultStatus;
+        try {
+          if (record.operation === 'retry') {
+            result = await api.retry(ids.executionId);
+            if (result?.workflowId !== ids.workflowId || String(result?.retryOf) !== ids.executionId || result?.mode !== 'retry') throw new ReplayError('outcome_unknown');
+            if (!['success', 'error', 'running', 'waiting', 'canceled', 'crashed', 'new', 'unknown'].includes(result.status)) throw new ReplayError('outcome_unknown');
+            resultStatus = result.status;
+            result = {executionId: result.id};
+          } else result = await api.run(ids.workflowId, fresh.payload);
+        }
         catch (error) { write(key, {...record, status: 'unknown'}); throw error; }
         if (result?.waitingForWebhook) { write(key, {...record, status: 'waitingForWebhook'}); throw new ReplayError('waiting_for_webhook'); }
-        if (!/^[0-9]{1,30}$/.test(String(result?.executionId ?? ''))) { write(key, {...record, status: 'unknown'}); throw new ReplayError('outcome_unknown'); }
-        const completed = {...record, status: 'submitted', executionId: String(result.executionId)};
+        if (!/^[0-9]{1,30}$/.test(String(result?.executionId ?? '')) || String(result.executionId) === ids.executionId) { write(key, {...record, status: 'unknown'}); throw new ReplayError('outcome_unknown'); }
+        const completed = {...record, status: 'submitted', executionId: String(result.executionId), ...(resultStatus ? {resultStatus} : {})};
         write(key, completed);
         return completed;
       });
@@ -115,7 +125,7 @@ export function createManager({api, storage, locks, config, digest = digestPlan,
       const user = await identity(); const record = read(keyFor(user.id, ids));
       if (!record?.executionId || !/^[0-9]{1,30}$/.test(record.executionId)) throw new ReplayError('no_result');
       const execution = await api.execution(record.executionId);
-      if (String(execution?.id) !== record.executionId || execution.workflowId !== ids.workflowId || execution.mode !== 'manual') throw new ReplayError('result_mismatch');
+      if (String(execution?.id) !== record.executionId || execution.workflowId !== ids.workflowId || execution.mode !== (record.operation === 'retry' ? 'retry' : 'manual') || (record.operation === 'retry' && String(execution.retryOf) !== ids.executionId)) throw new ReplayError('result_mismatch');
       return {id: record.executionId, status: execution.status, finished: execution.finished, stoppedAt: execution.stoppedAt};
     },
   };

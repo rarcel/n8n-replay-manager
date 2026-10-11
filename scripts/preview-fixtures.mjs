@@ -6,7 +6,7 @@ import { config } from '../web/config.mjs';
 import { stringify } from '../web/vendor/flatted.mjs';
 const root = resolve('web');
 const types = {'.html': 'text/html; charset=utf-8', '.css': 'text/css', '.mjs': 'application/javascript', '.woff2': 'font/woff2'};
-const workflow = {id: config.defaultWorkflowId, name: 'Workflow factice <test>', versionId: 'fixture-v1', scopes: ['workflow:read', 'workflow:execute'], nodes: [{name: 'Webhook', type: 'n8n-nodes-base.webhook'}], connections: {}, settings: {}};
+const workflow = {id: config.defaultWorkflowId, name: 'Workflow factice <test>', versionId: 'fixture-v1', scopes: ['workflow:read', 'workflow:execute'], nodes: [{name: 'Webhook', type: 'n8n-nodes-base.webhook'}, {name: 'Work', type: 'n8n-nodes-base.noOp'}], connections: {}, settings: {}};
 const summaries = ['101', '102', '103'].map((id, index) => ({id, workflowId: workflow.id, status: index === 1 ? 'success' : 'error', startedAt: `2026-10-${String(10 - index).padStart(2, '0')}T12:00:00.000Z`, stoppedAt: `2026-10-${String(10 - index).padStart(2, '0')}T12:01:00.000Z`, scopes: workflow.scopes}));
 let rejectedWrites = 0;
 const simulateRuns = process.env.FIXTURE_RUNS === '1';
@@ -25,6 +25,18 @@ const server = createServer(async (req, res) => {
     simulatedResults.set(executionId, {id: executionId, workflowId: workflow.id, mode: 'manual', status: 'success', stoppedAt: '2026-10-11T12:00:00Z'});
     await new Promise(resolve => setTimeout(resolve, 400));
     return json({data: {executionId}});
+  }
+  const retryId = url.pathname.match(/^\/rest\/executions\/(\d+)\/retry$/)?.[1];
+  if (simulateRuns && req.method === 'POST' && retryId) {
+    const summary = summaries.find(row => row.id === retryId && row.status === 'error');
+    if (!summary) return json({error: 'Only failed fixture executions accepted'}, 409);
+    let size = 0, raw = '';
+    for await (const chunk of req) {size += chunk.length; if (size > 1024) return json({error: 'Too large'}, 413); raw += chunk;}
+    let payload; try {payload = JSON.parse(raw);} catch {return json({error: 'Invalid payload'}, 400);}
+    if (payload.loadWorkflow !== true || Object.keys(payload).length !== 1) return json({error: 'Fixture retry body invalid'}, 400);
+    const id = String(1000 + ++simulatedPosts);
+    const result = {id, workflowId: workflow.id, mode: 'retry', retryOf: retryId, status: 'success', finished: true, stoppedAt: '2026-10-11T12:00:00Z'};
+    simulatedResults.set(id, result); return json({data: result});
   }
   if (req.method !== 'GET') { rejectedWrites++; return json({error: 'Fixtures: all writes refused'}, 405); }
   if (url.pathname === '/fixture-stats') return json({rejectedWrites, simulatedPosts});
@@ -50,7 +62,13 @@ const server = createServer(async (req, res) => {
     if (simulatedResults.has(executionId)) return json({data: simulatedResults.get(executionId)});
     const summary = summaries.find(row => row.id === executionId);
     if (!summary) return json({error: 'Fixture not found'}, 404);
-    return json({data: {...summary, mode: 'webhook', finished: summary.status === 'success', data: stringify({resultData: {runData: {Webhook: [{startTime: 1791633600000, executionTime: 12, executionStatus: 'success', data: {main: [[{json: {body: {fixture: true}}}]]}}]}}})}});
+    const data = {resultData: {runData: {Webhook: [{startTime: 1791633600000, executionTime: 12, executionStatus: 'success', data: {main: [[{json: {body: {fixture: true}}}]]}}]}}};
+    if (summary.status === 'error') {
+      data.resultData.lastNodeExecuted = 'Work'; data.resultData.error = {message: 'Fixture failure'};
+      data.resultData.runData.Work = [{error: {message: 'Fixture failure'}}];
+      data.executionData = {nodeExecutionStack: [{node: workflow.nodes[1], data: {main: [[{json: {fixture: true}}]]}, source: null}]};
+    }
+    return json({data: {...summary, workflowData: {id: workflow.id, versionId: workflow.versionId}, mode: 'webhook', finished: summary.status === 'success', data: stringify(data)}});
   }
   if (!url.pathname.startsWith('/replay-manager/')) return json({error: 'Fixtures only'}, 404);
   const target = resolve(root, '.' + url.pathname.slice('/replay-manager'.length) + (url.pathname.endsWith('/') ? 'index.html' : ''));

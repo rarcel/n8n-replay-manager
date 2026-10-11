@@ -31,8 +31,9 @@ Seuls ces appels sont effectués :
 | Lire source/résultat | GET `/rest/executions/{id}` |
 | Lire le workflow et ses scopes | GET `/rest/workflows/{id}` |
 | Soumettre après confirmation | POST `/rest/workflows/{id}/run` |
+| Retry natif après confirmation | POST `/rest/executions/{id}/retry`, body `{loadWorkflow: true}` |
 
-Aucun POST login, retry natif, API publique ou endpoint de modification de workflow n'est utilisé. n8n contrôle session, lecture de l'exécution, scopes du workflow et exécution. L'interface vérifie en plus les scopes `workflow:read` et `workflow:execute`. Le contrôle client n'est pas une frontière d'autorisation : les permissions côté n8n font autorité. `web/config.mjs` conserve les noms de déclencheurs explicites et active la découverte des workflows accessibles ; désactiver cette découverte rétablit la liste configurée comme garde-fou client.
+Aucun POST login, API publique ou endpoint de modification de workflow n'est utilisé. n8n contrôle session, lecture de l'exécution, scopes du workflow et exécution. L'interface vérifie en plus les scopes `workflow:read` et `workflow:execute`. Le contrôle client n'est pas une frontière d'autorisation : les permissions côté n8n font autorité. `web/config.mjs` conserve les noms de déclencheurs explicites et active la découverte des workflows accessibles ; désactiver cette découverte rétablit la liste configurée comme garde-fou client.
 
 ## Étape 1 — vérifier les fichiers
 
@@ -73,6 +74,18 @@ Le Compose publie seulement le reverse proxy sur la boucle locale ; n8n est acce
 
 ## Étape 3 — vérifier puis rejouer
 
+### Choisir Rejeu ou Retry
+
+Dans **Choisir les exécutions à relancer**, sélectionner **Action à effectuer** : **Rejeu depuis le déclencheur** repart de ses sorties enregistrées ; **Retry natif — reprendre l’échec** reprend la pile enregistrée par n8n avec le workflow actuel (`loadWorkflow: true`). Le filtre passe à **Erreurs**. Changer de mode efface la sélection et les confirmations.
+
+Cocher les sources puis **Vérifier la sélection**. Le récapitulatif affiche le mode, les nodes à reprendre et la version actuelle avant confirmation. Une source incompatible bloque tout le lot ; aucune exclusion silencieuse ni basculement vers le rejeu. Le retry peut reprendre des workflows dont le déclencheur n’est pas couvert par le rejeu.
+
+Le retry exige status `error`, `finished=false`, fin enregistrée, workflow source identifié et pile non vide. Refus des attentes, données masquées/binaires/épinglées, cycles, passages multiples, structures incompatibles et nodes à reprendre supprimés, renommés, désactivés ou de type différent. Ces conditions sont plus conservatrices que le bouton natif n8n. Le workflow actuel et l’état source sont relus et comparés avant POST ; seules les empreintes sont conservées dans les approbations. Aucune définition ni donnée d’exécution n’est envoyée par le manager au endpoint retry.
+
+Le retry crée une exécution en mode `retry`, liée par `retryOf` ; le contrôle du résultat vérifie cette provenance. Il peut répéter les effets déjà produits par le node en échec. Contrairement au rejeu manuel indépendant d’un sous-workflow, la reprise native conserve l’état enregistré, qui peut inclure le contexte parent. Marqueurs et verrous locaux sont partagés entre Rejeu et Retry : changer de mode ne contourne pas une tentative existante.
+
+L’endpoint natif attend le résultat de l’exécution. Un timeout laisse une issue inconnue et le blocage local. Aucun envoi n’est réessayé automatiquement. Le lot s’arrête aussi si un retry renvoie autre chose que succès : contrôler le résultat avant de traiter les sources restantes. Aucun démasquage ni modification du workflow. Sources 2.42.4 : [contrôleur retry](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/executions.controller.ts), [service de reprise](https://github.com/n8n-io/n8n/blob/n8n%402.42.4/packages/cli/src/executions/execution.service.ts).
+
 ### Rejeu d'une sélection bulk
 
 Choisir un workflow par son nom, puis utiliser les filtres **Succès et erreurs**, **Erreurs** ou **Succès** et l'intervalle de démarrage. Les dates sont saisies dans le fuseau du navigateur, converties en UTC pour n8n ; les deux bornes sont incluses. Les exécutions en cours ou en attente ne sont pas proposées au rejeu. Une erreur terminale avec `finished=false` reste admise si `stoppedAt` est présent.
@@ -97,7 +110,7 @@ Le sélecteur **Workflow à rejouer** intègre la recherche : taper une partie d
 4. Cliquer **Lancer le rejeu**. Session, source et workflow sont relus et le plan est comparé au plan approuvé. Une vérification expire après cinq minutes.
 5. Un nouvel ID signifie seulement **soumis**. Cliquer **Vérifier le résultat**, puis examiner l'exécution et les effets métier dans n8n.
 
-Le résultat est relu à la demande, sans polling automatique. Le contrôle vérifie nouvel ID, workflow et mode manuel ; il distingue une réussite, une erreur et une exécution encore en cours. Aucun payload ni résultat métier brut n'est affiché, logué ou persisté par le manager ; les données source sont nécessairement reçues en mémoire par le navigateur autorisé, et restent visibles dans ses outils réseau.
+Le résultat est relu à la demande, sans polling automatique. Le contrôle vérifie nouvel ID, workflow et mode manuel pour un rejeu, ou mode retry et retryOf pour une reprise ; il distingue une réussite, une erreur et une exécution encore en cours. Aucun payload ni résultat métier brut n'est affiché, logué ou persisté par le manager ; les données source sont nécessairement reçues en mémoire par le navigateur autorisé, et restent visibles dans ses outils réseau.
 
 Le contexte fourni rapporte qu'un POST éditeur précédent a créé `942541` depuis `942538`, validée par l'utilisateur. Cette observation n'a pas été reproduite par ce projet. Ne pas la présenter comme un test d'intégration du manager.
 
@@ -123,7 +136,7 @@ Le premier POC avait placé `main` un niveau trop haut. Cette version corrige ce
 
 Le choix explicite est de réutiliser les données du Webhook avec la définition et les credentials actuels. La version historique absente ou différente ne bloque plus. La destination actuelle et sa version sont affichées avant confirmation. Aucune définition historique n'est injectée et aucune version source n'est falsifiée. Une version actuelle absente bloque toujours ; une modification entre aperçu et relecture bloque avant POST. La définition relue sert uniquement au digest en mémoire, jamais au payload ni au stockage local. Le POST interne ne fournit pas de précondition atomique de version : une modification entre la dernière lecture et l'exécution reste possible, et doit être évitée pendant le rejeu. Le manager ne garantit donc pas une reproduction historique ni un verrou serveur du workflow.
 
-Le manager utilise Web Locks entre onglets d'une même origine, et écrit un marqueur dans son stockage local **avant** le POST. La clé distingue le compte n8n, le workflow et l'exécution source. Le marqueur contient uniquement IDs, date, état et nouvel ID éventuel. Après rechargement, une tentative existante bloque un nouvel envoi pour cette source.
+Le manager utilise Web Locks entre onglets d'une même origine, et écrit un marqueur dans son stockage local **avant** le POST. La clé distingue le compte n8n, le workflow et l'exécution source. Le marqueur contient uniquement IDs, date, mode choisi, état et nouvel ID/état de résultat éventuels. Après rechargement, une tentative existante bloque un nouvel envoi pour cette source.
 
 Un timeout, une réponse illisible, une erreur ou `waitingForWebhook` conserve le blocage. Aucun POST n'est réessayé automatiquement. Vérifier les exécutions dans n8n puis, si une nouvelle tentative est voulue, utiliser le panneau **Autoriser une nouvelle tentative**, confirmer le risque et lever explicitement le blocage. Une nouvelle vérification reste obligatoire. En cas d'attente Webhook, examiner cette attente via les fonctions autorisées n8n avant toute nouvelle action.
 

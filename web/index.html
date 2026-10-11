@@ -40,11 +40,13 @@
         <h2 id="executions-title">Choisir les exécutions à relancer</h2>
         <p>Filtrez les sources du workflow choisi. Les dates portent sur le démarrage, dans le fuseau horaire de votre navigateur, avec bornes incluses.</p>
         <form id="execution-filters" class="filters">
+          <div><label for="operation-mode">Action à effectuer</label><select id="operation-mode"><option value="replay">Rejeu depuis le déclencheur</option><option value="retry">Retry natif — reprendre l’échec</option></select></div>
           <div><label for="filter-status">Statut</label><select id="filter-status"><option value="terminal">Succès et erreurs</option><option value="error">Erreurs</option><option value="success">Succès</option></select></div>
           <div><label for="filter-after">Démarrage à partir du</label><input type="datetime-local" id="filter-after"></div>
           <div><label for="filter-before">Démarrage jusqu’au</label><input type="datetime-local" id="filter-before"></div>
           <button class="button secondary" id="execution-search" type="submit">Filtrer les exécutions</button>
         </form>
+        <p id="operation-help" class="field-help">Rejeu : repart du déclencheur avec ses sorties enregistrées, dans le workflow actuel.</p>
         <p id="execution-list-status" role="status" aria-live="polite">Choisissez un workflow puis appliquez les filtres.</p>
         <div class="table-scroll"><table class="execution-table"><thead><tr><th scope="col">Choix</th><th scope="col">Exécution</th><th scope="col">Statut</th><th scope="col">Démarrage</th></tr></thead><tbody id="execution-rows"></tbody></table></div>
         <div class="result-actions"><button class="button secondary" id="execution-more" type="button" hidden>Page suivante</button><button class="button secondary" id="selection-clear" type="button">Vider la sélection</button><span id="selection-count" role="status">0/50 sélectionnées</span></div>
@@ -57,8 +59,8 @@
             <div class="verified-badge">✓ Source vérifiée</div>
             <dl class="summary"><div><dt>Workflow</dt><dd id="workflow-name"></dd></div><div><dt>Exécution source</dt><dd id="source-id"></dd></div><div><dt>Déclencheur</dt><dd id="trigger-name"></dd></div><div><dt>Éléments à rejouer</dt><dd id="item-count"></dd></div></dl>
             <p>Destination : <strong>workflow actuel</strong> · version <span id="target-version"></span></p>
-            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>La sortie enregistrée du déclencheur sera utilisée avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
-            <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme le rejeu des données source dans le workflow actuel.</span></label>
+            <div class="caution"><strong>Exécution dans le workflow actuel.</strong><p>Le mode choisi réutilise les données enregistrées avec la définition et les credentials actuels, même si le workflow a évolué. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
+            <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme l’action choisie dans le workflow actuel.</span></label>
             <button class="button primary" id="replay-button" disabled type="button">Lancer le rejeu <span aria-hidden="true">↻</span></button>
             <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>
           </div>
@@ -74,8 +76,8 @@
         <ul id="bulk-results"></ul>
         <div id="bulk-confirmation" hidden>
           <p id="bulk-target"></p>
-          <div class="caution"><strong>Les effets peuvent être répétés.</strong><p>Les sorties enregistrées seront rejouées dans la définition et les credentials actuels. Les envois sont séquentiels ; un nouvel ID signifie soumis, sa réussite reste à contrôler.</p></div>
-          <label class="check-label"><input id="bulk-confirm" type="checkbox"><span>Je confirme le rejeu de toutes les sources listées dans le workflow actuel affiché et j’accepte les effets possibles.</span></label>
+          <div class="caution"><strong>Les effets peuvent être répétés.</strong><p id="bulk-operation-description">Les sorties enregistrées seront rejouées dans la définition et les credentials actuels. Les envois sont séquentiels ; un nouvel ID signifie soumis, sa réussite reste à contrôler.</p></div>
+          <label class="check-label"><input id="bulk-confirm" type="checkbox"><span id="bulk-confirm-label">Je confirme le rejeu de toutes les sources listées dans le workflow actuel affiché et j’accepte les effets possibles.</span></label>
           <button id="bulk-run" class="button primary" type="button" disabled>Lancer le lot</button>
         </div>
         <button id="bulk-stop" class="button secondary" type="button" hidden>Arrêter après l’envoi en cours</button>

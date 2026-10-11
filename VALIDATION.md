@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+Retry natif avec workflow actuel ajouté en individuel/lot, source error récupérable uniquement. Contrat officiel 2.42.4 examiné. 56 tests factices passent : preview sans POST, confirmation, mode/digest/source/droits/version, pins/binary/redaction/état invalide, stockage/verrous, réponse perdue/provenance incohérente, séquence et arrêt sur retry non réussi. Contrôle HTTP local factice : deux POST retry pour 101/103, résultats 1001/1002, résultat succès relu et doublons bloqués, aucun rejeu réel. UI non validée visuellement ; authentification et effets du retry réel à valider sur instance autorisée.
+
 Colonne Action et boutons Vérifier cette source supprimés de la liste. Sélection par cases puis Vérifier la sélection, y compris pour une seule source. Motifs des cases indisponibles conservés dans title/aria-label ; examen individuel des tentatives bloquées conservé. 49 tests factices passent ; aucun rejeu réel.
 
 Sélecteur de workflow avec recherche intégrée temporisée, liste navigable aux flèches/Entrée/Échap, sélection explicite et réponses dépassées ignorées. Choix charge automatiquement la liste d’exécutions ; IDs masqués, vérification individuelle uniquement depuis une ligne, panneau individuel affiché à la demande après la liste. 49 tests factices passent ; structure HTML et références DOM relues. Parcours visuel non validé ici : aperçu navigateur local inaccessible (connexion refusée). Aucun rejeu réel.

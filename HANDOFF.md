@@ -22,6 +22,8 @@ Préparer la sélection bulk des exécutions d'un même workflow : pagination se
 
 ## État local
 
+Choix Action à effectuer : Rejeu ou Retry natif avec définition actuelle (loadWorkflow:true). Retry réservé aux erreurs terminales finished=false avec pile compatible ; pins/binary/redaction/multiples runs/attentes/nodes incompatibles refusés. Simulation/confirmation/revalidation obligatoires, locks et marqueurs partagés entre modes, pas de retry automatique. Lot arrêté si retry répond autre chose que succès. 56 tests factices passent ; deux POST HTTP locaux simulés + contrôle provenance/résultat/doublons. Pas de validation sur n8n réel.
+
 Colonne Action et boutons Vérifier cette source supprimés de la liste. Sélection par cases puis Vérifier la sélection, y compris pour une seule source. Motifs des cases indisponibles conservés dans title/aria-label ; examen individuel des tentatives bloquées conservé. 49 tests factices passent ; aucun rejeu réel.
 
 Parcours simplifié : workflow-picker.mjs fournit combobox avec recherche serveur intégrée (250 ms), navigation clavier, pagination et protection contre réponses dépassées. Choix explicite charge les exécutions ; IDs de source/workflow internes masqués, aucune saisie d’ID en étape 01. Vérification individuelle depuis les lignes, panneau à la demande après la liste. 49 tests factices passent, navigateur local inaccessible pour contrôle visuel.
