@@ -2,6 +2,8 @@
 
 ## Réalisé
 
+- Extension Webhook / Schedule Trigger / Manual Trigger : chemin known-trigger du service et moteur n8n 2.42.4 examiné. Découverte activée pour les workflows accessibles ; sortie enregistrée uniquement, contrôle de type historique connu et refus d'ambiguïté. 36 tests factices passent ; aucune validation réelle des deux nouveaux types.
+
 - Liste filtrée et sélection bulk : 34 tests Node factices réussis via `node scripts/validate.mjs`. Contrats n8n 2.42.4 vérifiés dans les sources publiques : status sous forme de tableau, bornes inclusives startedAfter/startedBefore, limit/cursor et réponse results/nextCursor/count/estimated. Tests de conservation des filtres/sélection entre pages, limite de 50, refus des résumés incohérents/scopes absents/IDs incompatibles, changement de compte et curseurs répétés. Aucun override de redaction.
 - Parcours Chrome avec `scripts/preview-fixtures.mjs` : choix par nom (nom contenant `<test>` affiché comme texte), deux pages de résumés, sélection de 101 puis 103 conservée, vérification individuelle des deux sources en bulk sans envoi, changement de statut/dates effaçant la sélection et filtrant la source 101, ouverture de la simulation individuelle avec bouton de lancement bloqué sans confirmation. Rendu desktop examiné ; contrôle à 390 pixels sans débordement horizontal de la page, tableau avec scroll interne. Capture factice : `previews/bulk-selection-fixtures.png`. Aucune session ou instance n8n réelle utilisée.
 

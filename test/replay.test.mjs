@@ -76,6 +76,31 @@ test('normalizes editor flatted data, preserving reference sharing', () => {
   assert.equal(normalized.data.extra.a, normalized.data.extra.b);
   assert.equal(prepareReplay(f.execution, f.workflow, ids, config).itemCount, 1);
 });
+test('discovers recorded schedule and manual trigger outputs in accessible workflows', async () => {
+  for (const type of ['n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.manualTrigger']) {
+    const h = harness(); const selected = {workflowId: 'discovered', executionId: ids.executionId};
+    h.f.workflow.id = selected.workflowId; h.f.execution.workflowId = selected.workflowId;
+    h.f.workflow.nodes = [{name: 'Start', type}];
+    h.f.execution.data.resultData.runData.Start = h.f.execution.data.resultData.runData.Webhook;
+    delete h.f.execution.data.resultData.runData.Webhook;
+    const {plan} = await h.manager.preview(selected);
+    assert.equal(plan.trigger, 'Start'); assert.equal(plan.triggerType, type);
+    assert.equal(plan.payload.triggerToStartFrom.data.data.main[0][0].json.body.order, 42);
+    await h.manager.submit(selected, true);
+    assert.equal(h.calls.filter(c => typeof c === 'object').length, 1);
+  }
+});
+test('discovery refuses ambiguous triggers, historical type changes and unsupported contexts', () => {
+  const selected = {workflowId: 'discovered', executionId: ids.executionId};
+  const base = () => { const f = fixtures(); f.workflow.id = selected.workflowId; f.execution.workflowId = selected.workflowId; return f; };
+  for (const change of [
+    f => { f.workflow.nodes.push({name: 'Other', type: 'n8n-nodes-base.manualTrigger'}); f.execution.data.resultData.runData.Other = f.execution.data.resultData.runData.Webhook; },
+    f => { f.execution.workflowData.nodes = [{name: 'Webhook', type: 'n8n-nodes-base.scheduleTrigger'}]; },
+    f => { f.workflow.nodes[0].type = '@n8n/n8n-nodes-langchain.chatTrigger'; },
+    f => { f.workflow.nodes[0].type = 'n8n-nodes-base.executeWorkflowTrigger'; },
+  ]) { const f = base(); change(f); assert.throws(() => prepareReplay(f.execution, f.workflow, selected, config)); }
+  const f = base(); assert.throws(() => prepareReplay(f.execution, f.workflow, selected, {...config, discoverWorkflows: false}), {code: 'workflow_not_configured'});
+});
 test('constructs only known-trigger JSON payload and never mutates source', () => {
   const f = fixtures(); const before = structuredClone(f);
   const plan = prepareReplay(f.execution, f.workflow, ids, config);

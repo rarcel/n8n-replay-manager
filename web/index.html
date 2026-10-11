@@ -26,9 +26,9 @@
             <label for="workflow-id">Workflow à rejouer</label><select id="workflow-id" name="workflow" required><option value="">Chargez les workflows accessibles</option></select>
             <button class="button secondary" id="workflow-load" type="button">Actualiser les workflows</button>
             <button class="button secondary" id="workflow-more" type="button" hidden>Plus de workflows</button>
-            <p class="field-help">Seuls les workflows configurés pour le rejeu et autorisés par vos droits sont sélectionnables.</p>
+            <p class="field-help">Vos droits déterminent la sélection. La vérification accepte Webhook, Schedule Trigger et Manual Trigger avec données JSON compatibles.</p>
             <label for="execution-id">Identifiant de l’exécution</label><input id="execution-id" name="execution" autocomplete="off" required maxlength="30" inputmode="numeric" spellcheck="false">
-            <p class="field-help">Le rejeu réutilise les données JSON du Webhook enregistré.</p>
+            <p class="field-help">Le rejeu réutilise la sortie JSON enregistrée du déclencheur.</p>
             <button class="button primary" id="preview-button" type="submit">Vérifier la source <span aria-hidden="true">→</span></button>
           </form>
           <div class="read-only-note"><span aria-hidden="true">◇</span> Cette vérification ne lance aucune exécution.</div>
@@ -40,7 +40,7 @@
             <div class="verified-badge">✓ Source vérifiée</div>
             <dl class="summary"><div><dt>Workflow</dt><dd id="workflow-name"></dd></div><div><dt>Exécution source</dt><dd id="source-id"></dd></div><div><dt>Déclencheur</dt><dd id="trigger-name"></dd></div><div><dt>Éléments à rejouer</dt><dd id="item-count"></dd></div></dl>
             <p>Destination : <strong>workflow actuel</strong> · version <span id="target-version"></span></p>
-            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>Les données du Webhook source seront utilisées avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
+            <div class="caution"><strong>Rejeu dans le workflow actuel.</strong><p>La sortie enregistrée du déclencheur sera utilisée avec la définition et les credentials actuels, même si le workflow a évolué. Ce n’est pas une reproduction historique. Emails, paiements ou écritures peuvent être exécutés à nouveau.</p></div>
             <label class="check-label"><input id="confirm-effects" type="checkbox"><span>J’ai vérifié les effets et je confirme le rejeu des données source dans le workflow actuel.</span></label>
             <button class="button primary" id="replay-button" disabled type="button">Lancer le rejeu <span aria-hidden="true">↻</span></button>
             <p class="fine-print">La source et les droits sont revérifiés avant l’envoi.</p>

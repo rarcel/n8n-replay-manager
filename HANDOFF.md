@@ -22,6 +22,8 @@ Préparer la sélection bulk des exécutions d'un même workflow : pagination se
 
 ## État local
 
+Extension aux sorties JSON enregistrées de Webhook, Schedule Trigger et Manual Trigger. Découverte des workflows accessibles activée, avec détection d'un seul déclencheur exécuté compatible ; les workflows explicitement configurés gardent leur nom de déclencheur. Chat/formulaires/sous-workflows/autres types exclus. 36 tests factices passent. Aucun test réel des nouveaux types.
+
 Liste d'exécutions via GET /rest/executions : filter workflowId/status/startedAfter/startedBefore, limit=50 et cursor opaque, contrat vérifié au tag 2.42.4. Cases explicites, sélection jusqu'à 50 conservée entre pages ; changements de filtres/workflow et erreurs de pagination/session invalident les choix. 34 tests factices passent ; parcours Chrome factice et rendu mobile vérifiés. `scripts/preview-fixtures.mjs` ne relaie rien et refuse toutes les écritures. Les notes de migration ci-dessous décrivent les étapes précédentes ; la pagination n'est plus en attente.
 
 Sélecteur de workflows accessible ajouté avec noms et IDs, pagination take/skip et scopes n8n. Seuls les workflows configurés, non archivés et avec droits read/execute sont sélectionnables. 29 tests factices passent ; aucun changement de configuration de rejeu.

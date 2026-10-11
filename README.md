@@ -101,6 +101,10 @@ Le contexte fourni rapporte qu'un POST éditeur précédent a créé `942541` de
 
 ## Payload et conditions couvertes
 
+La découverte des workflows accessibles est activée (`discoverWorkflows: true`). Le manager peut réutiliser les sorties JSON enregistrées de **Webhook**, **Schedule Trigger** et **Manual Trigger**, dans le workflow actuel. Le déclencheur est identifié par son nom et son type actuel parmi les passages enregistrés ; plusieurs candidats, passages multiples, changement de type historique connu ou déclencheur désactivé sont refusés. Le nom configuré reste prioritaire pour les workflows déjà configurés. Désactiver la découverte rétablit la liste explicite. La sélection dans le catalogue ne prouve pas la compatibilité.
+
+Cette extension ne déclenche pas un nouvel événement, ne réarme pas un planning et ne reprend pas une attente. Chat, formulaires, error triggers, sous-workflows et triggers communautaires restent hors périmètre. Les nouveaux types sont couverts par des fixtures ; leurs effets réels restent à valider sur une instance autorisée.
+
 La source doit appartenir au workflow et être terminée (`success` ou `error`, avec `stoppedAt`). Les erreurs terminales n8n peuvent avoir `finished=false` ; ce champ seul ne bloque donc pas leur lecture. Les données source sont rejouées dans le **workflow actuel**, même si la version historique est absente ou différente. La version actuelle doit être disponible et rester stable entre aperçu et envoi ; les nodes, connections et settings relus sont également comparés. Le POC refuse toutes les données épinglées, les binaires, les données signalées comme masquées par n8n, les multiples passages du trigger, les erreurs du trigger et un Webhook désactivé ou d'un type différent.
 
 L'API éditeur renvoie les données dans une enveloppe `data`, avec les données d'exécution éventuellement sérialisées via flatted. Le manager décode ce format ; il n'effectue aucune requête pour demander le démasquage. Réponse HTTP ou données d'exécution >8 MiB refusées ; payload de rejeu >2 MiB et >1 000 items refusés. Une réponse sans schéma/scopes/version compatibles bloque l'opération.

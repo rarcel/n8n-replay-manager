@@ -3,10 +3,11 @@ export class ReplayError extends Error {
   constructor(code, versions) { super(code); this.code = code; this.versions = versions; }
 }
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+export const replayTriggerTypes = Object.freeze(['n8n-nodes-base.webhook', 'n8n-nodes-base.scheduleTrigger', 'n8n-nodes-base.manualTrigger']);
 export function validateIds(workflowId, executionId, config) {
   if (typeof workflowId !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(workflowId) ||
       typeof executionId !== 'string' || !/^[0-9]{1,30}$/.test(executionId)) throw new ReplayError('invalid_ids');
-  if (!Object.hasOwn(config.workflows, workflowId)) throw new ReplayError('workflow_not_configured');
+  if (!config.discoverWorkflows && !Object.hasOwn(config.workflows, workflowId)) throw new ReplayError('workflow_not_configured');
 }
 export function normalizeExecution(execution) {
   if (!object(execution) || execution.dataTooLargeToDisplay) throw new ReplayError('execution_unavailable');
@@ -32,9 +33,15 @@ export function prepareReplay(rawExecution, workflow, ids, config) {
   // Replay source data into the current stored workflow, never its historical snapshot.
   if (typeof currentVersion !== 'string' || !currentVersion) throw new ReplayError('workflow_version_unavailable', versions);
   if (Object.keys(workflow.pinData ?? {}).length) throw new ReplayError('pinned_data');
-  const trigger = config.workflows[ids.workflowId].trigger;
-  const node = workflow.nodes?.find(n => n.name === trigger);
-  if (!node || node.type !== 'n8n-nodes-base.webhook' || node.disabled) throw new ReplayError('unsupported_trigger');
+  const configuredTrigger = config.workflows[ids.workflowId]?.trigger;
+  const candidates = workflow.nodes?.filter(node => replayTriggerTypes.includes(node.type) &&
+    (configuredTrigger ? node.name === configuredTrigger : Object.hasOwn(execution.data.resultData.runData ?? {}, node.name))) ?? [];
+  if (candidates.length > 1) throw new ReplayError('ambiguous_trigger');
+  const node = candidates[0];
+  if (!node || node.disabled) throw new ReplayError('unsupported_trigger');
+  const trigger = node.name;
+  const historicalNode = execution.workflowData?.nodes?.find(sourceNode => sourceNode.name === trigger);
+  if (historicalNode && historicalNode.type !== node.type) throw new ReplayError('unsupported_trigger');
   const runs = execution.data.resultData.runData?.[trigger];
   if (!Array.isArray(runs) || runs.length !== 1 || runs[0]?.error || runs[0]?.redactedError) throw new ReplayError('ambiguous_trigger');
   const task = runs[0];
@@ -54,7 +61,7 @@ export function prepareReplay(rawExecution, workflow, ids, config) {
   const bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
   if (bytes > 2 * 1024 * 1024) throw new ReplayError('payload_too_large');
   const workflowSnapshot = JSON.parse(JSON.stringify({nodes: workflow.nodes, connections: workflow.connections, settings: workflow.settings}));
-  return {workflowId: ids.workflowId, sourceExecutionId: ids.executionId, workflowName: String(workflow.name ?? workflow.id), versionId: currentVersion, sourceVersionId: versions.source, replayTarget: 'current', workflowSnapshot, trigger, itemCount: items.length, payload};
+  return {workflowId: ids.workflowId, sourceExecutionId: ids.executionId, workflowName: String(workflow.name ?? workflow.id), versionId: currentVersion, sourceVersionId: versions.source, replayTarget: 'current', workflowSnapshot, trigger, triggerType: node.type, itemCount: items.length, payload};
 }
 export async function digestPlan(plan, subtle = globalThis.crypto.subtle) {
   const text = JSON.stringify([plan.workflowId, plan.sourceExecutionId, plan.versionId, plan.replayTarget, plan.workflowSnapshot, plan.payload]);
