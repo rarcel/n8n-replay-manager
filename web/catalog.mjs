@@ -1,3 +1,4 @@
+import { t } from './i18n.mjs';
 import { ReplayError } from './model.mjs';
 
 export async function workflowPage(api, config, skip = 0, name = '') {
@@ -11,7 +12,7 @@ export async function workflowPage(api, config, skip = 0, name = '') {
     const configured = config.discoverWorkflows || Object.hasOwn(config.workflows, workflow.id);
     const permitted = ['workflow:read', 'workflow:execute'].every(scope => workflow.scopes.includes(scope));
     return {id: workflow.id, name: workflow.name, selectable: configured && permitted && !workflow.isArchived,
-      reason: !configured ? 'Workflow non configuré pour le rejeu' : !permitted ? 'Droits de rejeu insuffisants' : workflow.isArchived ? 'Workflow archivé' : ''};
+      reason: !configured ? t("Workflow non configuré pour le rejeu") : !permitted ? t("Droits de rejeu insuffisants") : workflow.isArchived ? t("Workflow archivé") : ''};
   });
   return {userId: user.id, workflows, nextSkip: workflows.length && skip + workflows.length < response.count ? skip + workflows.length : null};
 }

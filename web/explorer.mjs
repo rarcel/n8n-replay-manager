@@ -1,3 +1,4 @@
+import { t } from './i18n.mjs';
 import { ReplayError, validateIds } from './model.mjs';
 
 const dateValue = value => {
@@ -46,7 +47,7 @@ function executionPage(response, filters) {
     const permitted = Array.isArray(row.scopes) && ['workflow:read', 'workflow:execute'].every(scope => row.scopes.includes(scope));
     return {id: row.id, status: row.status, startedAt: row.startedAt, stoppedAt: row.stoppedAt ?? null,
       selectable: supportedId && !!row.stoppedAt && permitted,
-      reason: !supportedId ? 'Format d’ID non pris en charge' : !row.stoppedAt ? 'Source non terminée' : !permitted ? 'Droits insuffisants' : ''};
+      reason: !supportedId ? t("Format d’ID non pris en charge") : !row.stoppedAt ? t("Source non terminée") : !permitted ? t("Droits insuffisants") : ''};
   });
   return {rows, count: response.count, estimated: response.estimated, nextCursor: response.nextCursor};
 }

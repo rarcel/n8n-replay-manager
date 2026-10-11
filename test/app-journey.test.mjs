@@ -26,23 +26,32 @@ test('page reset clears the entire journey and confirmations while preserving lo
     $('filter-after').value = ''; $('filter-before').value = '';
   };
   const storage = new Map([['n8n-browserId', 'fixture-browser-id-123456'], ['replay-manager:v2:previous', 'marker']]);
-  const globals = ['document', 'window', 'localStorage', 'location', 'matchMedia', 'addEventListener', 'fetch'];
+  const globals = ['document', 'window', 'navigator', 'localStorage', 'location', 'matchMedia', 'addEventListener', 'fetch'];
   const previous = globals.map(name => Object.getOwnPropertyDescriptor(globalThis, name));
   t.after(() => globals.forEach((name, index) => previous[index] ? Object.defineProperty(globalThis, name, previous[index]) : delete globalThis[name]));
+  Object.defineProperty(globalThis, 'navigator', {configurable: true, value: {language: 'de-DE'}});
   Object.assign(globalThis, {
     document: {body: new Element(), getElementById: $, createElement: () => new Element(), querySelectorAll: selector => selector === '.steps li' ? steps : []},
     window: {location: {assign() { throw new Error('unexpected navigation'); }}},
     location: {origin: 'https://fixture.invalid'}, localStorage: {getItem: key => storage.get(key) ?? null},
     matchMedia: () => ({matches: false, addEventListener() {}}), addEventListener() {},
-    fetch: async url => new Response(JSON.stringify(url.pathname === '/rest/login' ? {data: {id: 'user'}} : {data: [], count: 0}), {headers: {'content-type': 'application/json'}}),
+    fetch: async url => new Response(JSON.stringify(url.pathname === '/rest/login' ? {data: {id: 'user'}} : url.pathname === '/rest/executions' ? {data: {results: [{id: '101', workflowId: 'wf', status: 'error', startedAt: '2026-10-10T10:00:00Z', stoppedAt: '2026-10-10T10:01:00Z', scopes: ['workflow:read', 'workflow:execute']}], count: 1, estimated: false, nextCursor: null}} : {data: [], count: 0}), {headers: {'content-type': 'application/json'}}),
   });
   await import('../web/app.mjs');
   const settle = () => new Promise(resolve => setTimeout(resolve, 25));
   await settle();
+  assert.equal($('session-status').textContent, 'Signed in · n8n user');
   assert.equal($('execution-browser').hidden, true); assert.equal($('bulk-panel').hidden, true);
   assert.equal(steps[0].attributes['aria-current'], 'step');
   $('workflow-id').value = 'wf'; $('workflow-id').events.input();
   assert.equal($('execution-browser').hidden, false); assert.equal(steps[1].attributes['aria-current'], 'step');
+  $('execution-filters').events.submit({preventDefault() {}}); await settle();
+  assert.equal($('execution-list-status').textContent, '1 execution on this page · 1 total.');
+  const checkbox = $('execution-rows').children[0].children[0].children[0];
+  assert.equal(checkbox.attributes['aria-label'], 'Select execution 101');
+  checkbox.checked = true; checkbox.events.change();
+  assert.equal($('bulk-panel').hidden, false); assert.equal(steps[2].attributes['aria-current'], 'step');
+  assert.equal($('selection-count').textContent, '1/50 selected');
   $('operation-mode').value = 'retry'; $('filter-after').value = '2026-10-11T10:00';
   $('confirm-effects').checked = true; $('bulk-confirm').checked = true;
   $('page-reset').events.click(); await settle();

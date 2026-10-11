@@ -1,3 +1,4 @@
+import { t } from './i18n.mjs';
 import { workflowPage } from './catalog.mjs';
 
 // Only an explicit result choice supplies an ID. Typed text never becomes a workflow ID.
@@ -24,12 +25,12 @@ export function createWorkflowPicker({input, dropdown, list, status, more, api, 
       option.addEventListener('click', () => choose(index)); list.append(option);
     });
     more.hidden = nextSkip === null;
-    status.textContent = rows.length ? `${rows.length} résultats chargés` : 'Aucun workflow trouvé.';
+    status.textContent = rows.length ? t`${rows.length} résultats chargés` : t("Aucun workflow trouvé.");
   }
   async function search(value = '', append = false) {
     clearTimeout(timer); const request = ++generation;
     if (!append) { query = value.trim(); rows = []; nextSkip = null; userId = null; list.replaceChildren(); highlight(-1); more.hidden = true; }
-    more.disabled = true; status.textContent = 'Recherche…';
+    more.disabled = true; status.textContent = t("Recherche…");
     try {
       const page = await workflowPage(api, config, append ? nextSkip : 0, query);
       if (request !== generation) return;
@@ -40,12 +41,12 @@ export function createWorkflowPicker({input, dropdown, list, status, more, api, 
     } catch (error) {
       if (request !== generation) return;
       rows = []; nextSkip = null; list.replaceChildren(); highlight(-1); more.hidden = true;
-      status.textContent = 'Recherche indisponible. Retapez pour réessayer.'; onClear(); onError(error);
+      status.textContent = t("Recherche indisponible. Retapez pour réessayer."); onClear(); onError(error);
     } finally { if (request === generation) more.disabled = disabled; }
   }
   input.addEventListener('input', () => {
     generation++; clearTimeout(timer); rows = []; list.replaceChildren(); highlight(-1); more.hidden = true;
-    onClear(); open(true); status.textContent = 'Recherche…';
+    onClear(); open(true); status.textContent = t("Recherche…");
     timer = setTimeout(() => search(input.value), 250);
   });
   input.addEventListener('focus', () => open(true));
